@@ -31,7 +31,7 @@ public static class PluginLoader
                 LogUnrealSharpPlugins.Log($"Plugin {assemblyName} is already loaded.");
                 return assembly;
             }
-            
+
             Plugin plugin = new Plugin(assemblyName, isCollectible, assemblyPath);
             if (!plugin.Load() || plugin.Assembly == null || plugin.Assembly.Target is not Assembly loadedAssembly)
             {
@@ -45,9 +45,9 @@ public static class PluginLoader
                 // Sometimes the module initializer doesn't run automatically, so we force it here
                 RuntimeHelpers.RunModuleConstructor(loadedAssembly.ManifestModule.ModuleHandle);
             }
-            
+
             StartupJobManager.RunForAssembly(loadedAssembly);
-            
+
             LogUnrealSharpPlugins.Log($"Successfully loaded plugin: {assemblyName}");
             return loadedAssembly;
         }
@@ -58,7 +58,7 @@ public static class PluginLoader
 
         return null;
     }
-    
+
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static WeakReference? RemovePlugin(string assemblyName)
     {
@@ -69,22 +69,22 @@ public static class PluginLoader
             {
                 continue;
             }
-            
+
             LoadedPlugins.Remove(loadedPlugin);
             weakRefLoadContext = loadedPlugin.Unload();
             break;
         }
-        
+
         return weakRefLoadContext;
     }
 
     public static bool UnloadPlugin(string assemblyPath)
     {
         const int warnThresholdMs = 200;
-        const int timeoutMs = 2000;
+        const int timeoutMs = 20000;
 
         TaskTracker.WaitForAllActiveTasks();
-        
+
         string assemblyName = Path.GetFileNameWithoutExtension(assemblyPath);
         WeakReference? weakAlc = RemovePlugin(assemblyName);
 
@@ -111,7 +111,7 @@ public static class PluginLoader
                 {
                     break;
                 }
-                
+
                 if (!hasWarned && stopWatch.ElapsedMilliseconds >= warnThresholdMs)
                 {
                     hasWarned = true;
@@ -134,7 +134,7 @@ public static class PluginLoader
             return false;
         }
     }
-    
+
     public static Plugin? FindPluginByName(string assemblyName)
     {
         foreach (Plugin loadedPlugin in LoadedPlugins)
