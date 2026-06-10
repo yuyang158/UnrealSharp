@@ -21,7 +21,7 @@ FString UnrealSharp::DotNetUtilities::GetDotNetDirectory()
 		return FString();
 	}
 #endif
-	
+
 #if defined(__APPLE__)
     constexpr const TCHAR* DefaultDotNetPath = TEXT("/usr/local/share/dotnet/");
     if (FPaths::DirectoryExists(DefaultDotNetPath))
@@ -31,7 +31,7 @@ FString UnrealSharp::DotNetUtilities::GetDotNetDirectory()
 #endif
 
     const FString PathVariable = FPlatformMisc::GetEnvironmentVariable(TEXT("PATH"));
-    
+
     TArray<FString> Paths;
     PathVariable.ParseIntoArray(Paths, FPlatformMisc::GetPathVarDelimiter());
 
@@ -151,7 +151,7 @@ bool UnrealSharp::DotNetUtilities::VerifyCSharpEnvironment()
 		FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(DialogText));
 		return false;
 	}
-	
+
 	return true;
 }
 
@@ -159,17 +159,22 @@ bool UnrealSharp::DotNetUtilities::BuildUserSolution()
 {
 	TArray<FString> ProjectPaths;
 	Project::GetAllProjectPaths(ProjectPaths);
-	
+
 	if (ProjectPaths.IsEmpty())
 	{
 		return true;
 	}
-	
+
 	if (FCSUnrealSharpUtils::IsStandalonePIE() || FApp::IsUnattended())
 	{
 		return true;
 	}
-	
+
+	const FString BuildEnvironment = FPlatformMisc::GetEnvironmentVariable(TEXT("UNREAL_SHARP_BUILD"));
+	if (BuildEnvironment != TEXT("TRUE")) {
+		return true;
+	}
+
 	return Build::BuildUserSolution(Dialogs::MakeOkCancelDialogOnError());
 }
 #endif
@@ -210,12 +215,12 @@ bool UnrealSharp::DotNetUtilities::IsVersionGreaterOrEqual(const FString& Versio
 	{
 		return Major > MinMajor;
 	}
-	
+
 	if (Minor != MinMinor)
 	{
 		return Minor > MinMinor;
 	}
-	
+
 	return Patch >= MinPatch;
 }
 
@@ -233,11 +238,11 @@ bool UnrealSharp::DotNetUtilities::IsVersionHigher(const FString& A, const FStri
 	{
 		return MajorA > MajorB;
 	}
-	
+
 	if (MinorA != MinorB)
 	{
 		return MinorA > MinorB;
 	}
-	
+
 	return PatchA > PatchB;
 }
