@@ -160,11 +160,7 @@ UClass* FCSAssetTypeAction_CSBlueprint::GetSupportedClass() const
 	return UCSBlueprint::StaticClass();
 }
 
-#if ENGINE_MAJOR_VERSION * 100 + ENGINE_MINOR_VERSION < 505
-void FCSAssetTypeAction_CSBlueprint::OpenAssetEditor(const TArray<UObject*>& InObjects, const EAssetTypeActivationOpenedMethod OpenedMethod, TSharedPtr<IToolkitHost> EditWithinLevelEditor)
-#else
 void FCSAssetTypeAction_CSBlueprint::OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<class IToolkitHost> EditWithinLevelEditor)
-#endif
 {
 	for (UObject* Object : InObjects)
 	{

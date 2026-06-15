@@ -1,150 +1,130 @@
 ﻿using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using System.Runtime.Loader;
-using UnrealSharp.Core;
+using UnrealSharp.Engine.Core.Modules;
 
 namespace UnrealSharp.Plugins;
 
 public static class PluginLoader
 {
-    public static readonly List<Plugin> LoadedPlugins = [];
+	private static readonly Dictionary<string, Plugin> Plugins = [];
 
-    public static Assembly? LoadPlugin(string assemblyPath, bool isCollectible)
-    {
-        try
-        {
-            AssemblyName assemblyName = new AssemblyName(Path.GetFileNameWithoutExtension(assemblyPath));
+	public static Assembly? LoadPlugin(string assemblyPath, bool isCollectible)
+	{
+		try
+		{
+			AssemblyName assemblyName = new AssemblyName(Path.GetFileNameWithoutExtension(assemblyPath));
 
-            foreach (Plugin loadedPlugin in LoadedPlugins)
-            {
-                if (loadedPlugin.Assembly?.Target is not Assembly assembly)
-                {
-                    continue;
-                }
+			if (Plugins.TryGetValue(assemblyName.Name!, out Plugin? loadedPlugin))
+			{
+				return (Assembly)loadedPlugin.Assembly!.Target!;
+			}
 
-                if (assembly.GetName() != assemblyName)
-                {
-                    continue;
-                }
+			Plugin plugin = new Plugin(assemblyName, isCollectible, assemblyPath);
+			Plugins.Add(assemblyName.Name!, plugin);
 
-                LogUnrealSharpPlugins.Log($"Plugin {assemblyName} is already loaded.");
-                return assembly;
-            }
+			if (!plugin.Load())
+			{
+				Plugins.Remove(assemblyName.Name!);
+				throw new InvalidOperationException($"Failed to load plugin: {assemblyName}");
+			}
 
-            Plugin plugin = new Plugin(assemblyName, isCollectible, assemblyPath);
-            if (!plugin.Load() || plugin.Assembly == null || plugin.Assembly.Target is not Assembly loadedAssembly)
-            {
-                throw new InvalidOperationException($"Failed to load plugin: {assemblyName}");
-            }
+			LogUnrealSharpPlugins.Log($"Successfully loaded plugin: '{assemblyName}' at '{assemblyPath}'");
+			return (Assembly)plugin.Assembly!.Target!;
+		}
+		catch (Exception ex)
+		{
+			LogUnrealSharpPlugins.LogError($"An error occurred while loading the plugin: {ex.Message}");
+		}
 
-            LoadedPlugins.Add(plugin);
+		return null;
+	}
 
-            if (!StartupJobManager.HasJobs(loadedAssembly))
-            {
-                // Sometimes the module initializer doesn't run automatically, so we force it here
-                RuntimeHelpers.RunModuleConstructor(loadedAssembly.ManifestModule.ModuleHandle);
-            }
+	[MethodImpl(MethodImplOptions.NoInlining)]
+	private static WeakReference? RemovePlugin(string assemblyName)
+	{
+		if (!Plugins.Remove(assemblyName, out Plugin? value))
+		{
+			return null;
+		}
 
-            StartupJobManager.RunForAssembly(loadedAssembly);
+		return value.Unload();
+	}
 
-            LogUnrealSharpPlugins.Log($"Successfully loaded plugin: {assemblyName}");
-            return loadedAssembly;
-        }
-        catch (Exception ex)
-        {
-            LogUnrealSharpPlugins.LogError($"An error occurred while loading the plugin: {ex.Message}");
-        }
+	public static void UnloadPlugin(string assemblyPath)
+	{
+		TaskTracker.WaitForAllActiveTasks();
 
-        return null;
-    }
+		string assemblyName = Path.GetFileNameWithoutExtension(assemblyPath);
+		WeakReference? weakAlc = RemovePlugin(assemblyName);
 
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    private static WeakReference? RemovePlugin(string assemblyName)
-    {
-        WeakReference? weakRefLoadContext = null;
-        foreach (Plugin loadedPlugin in LoadedPlugins)
-        {
-            if (loadedPlugin.AssemblyName.Name != assemblyName)
-            {
-                continue;
-            }
+		if (weakAlc == null)
+		{
+			LogUnrealSharpPlugins.Log($"Plugin {assemblyName} is not loaded or already removed from registry.");
+			return;
+		}
 
-            LoadedPlugins.Remove(loadedPlugin);
-            weakRefLoadContext = loadedPlugin.Unload();
-            break;
-        }
+		try
+		{
+			LogUnrealSharpPlugins.Log($"Unloading plugin {assemblyName}...");
 
-        return weakRefLoadContext;
-    }
+			Stopwatch stopWatch = Stopwatch.StartNew();
 
-    public static bool UnloadPlugin(string assemblyPath)
-    {
-        const int warnThresholdMs = 200;
-        const int timeoutMs = 20000;
+			int maxAttempts = 8;
+			int attempt = 0;
 
-        TaskTracker.WaitForAllActiveTasks();
+			while (weakAlc.IsAlive && attempt < maxAttempts)
+			{
+				GC.Collect();
+				GC.WaitForPendingFinalizers();
 
-        string assemblyName = Path.GetFileNameWithoutExtension(assemblyPath);
-        WeakReference? weakAlc = RemovePlugin(assemblyName);
+				if (!weakAlc.IsAlive)
+				{
+					break;
+				}
 
-        if (weakAlc == null)
-        {
-            LogUnrealSharpPlugins.Log($"Plugin {assemblyName} is not loaded or already removed from registry.");
-            return true;
-        }
+				Thread.Sleep(1);
+				attempt++;
+			}
 
-        try
-        {
-            LogUnrealSharpPlugins.Log($"Unloading plugin {assemblyName}...");
+			if (weakAlc.IsAlive)
+			{
+				// https://github.com/dotnet/runtime/issues/124876
+				LogUnrealSharpPlugins.LogWarning(
+					$"'{assemblyName}' did not fully unload. " +
+					"A known Visual Studio/Rider debugger issue may be holding strong references to assembly types, preventing the old assembly from being collected. " +
+					"Hot reload will continue to work with some additional memory overhead. " +
+					"Re-attaching the debugger usually releases these references and allows the assembly to be GC'd on the next hot reload.");
+				return;
+			}
 
-            Stopwatch stopWatch = Stopwatch.StartNew();
-            bool hasWarned = false;
+			LogUnrealSharpPlugins.Log($"{assemblyName} unloaded successfully in {stopWatch.ElapsedMilliseconds}ms.");
+		}
+		catch (Exception exception)
+		{
+			LogUnrealSharpPlugins.LogError($"An error occurred while unloading the plugin: {exception}");
+		}
+	}
 
-            while (weakAlc.IsAlive)
-            {
-                GC.Collect();
-                GC.WaitForPendingFinalizers();
-                GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, true, true);
+	public static Plugin? FindPlugin(Type type)
+	{
+		Assembly assembly = type.Assembly;
+		return FindPlugin(assembly);
+	}
 
-                if (!weakAlc.IsAlive)
-                {
-                    break;
-                }
+	public static Plugin? FindPlugin(Assembly assembly)
+	{
+		return FindPlugin(assembly.GetName().Name!);
+	}
 
-                if (!hasWarned && stopWatch.ElapsedMilliseconds >= warnThresholdMs)
-                {
-                    hasWarned = true;
-                    LogUnrealSharpPlugins.LogError($"Unloading {assemblyName} is taking longer than expected...");
-                }
+	public static Plugin? FindPlugin(string assemblyName)
+	{
+		return Plugins.GetValueOrDefault(assemblyName);
+	}
 
-                if (stopWatch.ElapsedMilliseconds >= timeoutMs)
-                {
-                    LogUnrealSharpPlugins.LogError($"Failed to unload {assemblyName} within {timeoutMs}ms. Common causes: static references, GCHandles, background threads.");
-                    return false;
-                }
-            }
-
-            LogUnrealSharpPlugins.Log($"{assemblyName} unloaded successfully in {stopWatch.ElapsedMilliseconds}ms.");
-            return true;
-        }
-        catch (Exception exception)
-        {
-            LogUnrealSharpPlugins.LogError($"An error occurred while unloading the plugin: {exception}");
-            return false;
-        }
-    }
-
-    public static Plugin? FindPluginByName(string assemblyName)
-    {
-        foreach (Plugin loadedPlugin in LoadedPlugins)
-        {
-            if (loadedPlugin.AssemblyName.Name == assemblyName)
-            {
-                return loadedPlugin;
-            }
-        }
-
-        return null;
-    }
+	public static T FindModule<T>() where T : class, IModuleInterface
+	{
+		Plugin plugin = FindPlugin(typeof(T))!;
+		return plugin.GetModule<T>();
+	}
 }
