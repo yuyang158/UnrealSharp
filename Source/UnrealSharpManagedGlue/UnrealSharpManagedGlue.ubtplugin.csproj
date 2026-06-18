@@ -35,8 +35,9 @@
         <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
         <DebugType>pdbonly</DebugType>
         <Nullable>enable</Nullable>
+		<TargetFramework>net10.0</TargetFramework>
 
-        <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == '' AND '$(PackAsTool)' != 'true'">$(NETCoreSdkRuntimeIdentifier)</RuntimeIdentifier>
+		<RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == '' AND '$(PackAsTool)' != 'true'">$(NETCoreSdkRuntimeIdentifier)</RuntimeIdentifier>
     </PropertyGroup>
     
     <ItemGroup>
