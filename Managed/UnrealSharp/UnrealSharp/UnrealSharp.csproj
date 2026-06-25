@@ -18,6 +18,12 @@
         <UHTGeneratedPath>..\..\..\Intermediate\UnrealSharp\UHT\$(UETargetType)</UHTGeneratedPath>
         <UHTFullPath>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\$(UHTGeneratedPath)'))</UHTFullPath>
     </PropertyGroup>
+    <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+      <DefineConstants>TRACE;WITH_EDITOR;WITH_DEVELOPMENT;UE_5_5_OR_LATER;</DefineConstants>
+    </PropertyGroup>
+    <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+      <DefineConstants>TRACE;WITH_EDITOR;WITH_DEVELOPMENT;UE_5_5_OR_LATER;</DefineConstants>
+    </PropertyGroup>
     
     <Import Project="..\..\..\UnrealSharp.AOT.props" Condition="Exists('..\..\..\UnrealSharp.AOT.props')" />
     <Import Project="$(UHTGeneratedPath)\UE5Rules.Defines.props" Condition="Exists('$(UHTGeneratedPath)\UE5Rules.Defines.props')" />
