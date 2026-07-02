@@ -92,14 +92,22 @@ void UCSManagedAssembly::UnloadAssembly()
 		UE_LOGFMT(LogUnrealSharp, Display, "{0} is already unloaded", GetName());
 		return;
 	}
-
+	
+	FGCHandleIntPtr AssemblyHandlePtr = AssemblyHandle->GetHandle();
+	for (TSharedPtr<FGCHandle> Handle : ManagedHandles)
+	{
+		Handle->Dispose(AssemblyHandlePtr);
+	}
+	
 	ManagedTypeHandles.Reset();
+	ManagedHandles.Reset();
 
-	AssemblyHandle->Dispose(AssemblyHandle->GetHandle());
+	AssemblyHandle->Dispose(AssemblyHandlePtr);
 	AssemblyHandle.Reset();
-
-	FCSAssemblyEvents::OnAssemblyUnloaded.Broadcast(this);
+	
 	GetManagedPluginCallbacks().UnloadPlugin(*AssemblyFilePath);
+	
+	FCSAssemblyEvents::OnAssemblyUnloaded.Broadcast(this);
 }
 
 TSharedPtr<FGCHandle> UCSManagedAssembly::FindTypeHandle(const FCSFieldName& FieldName)
@@ -125,10 +133,13 @@ TSharedPtr<FGCHandle> UCSManagedAssembly::FindTypeHandle(const FCSFieldName& Fie
 
 TSharedPtr<FGCHandle> UCSManagedAssembly::AddTypeHandle(const FCSFieldName& FieldName, uint8* TypeHandle)
 {
-	return ManagedTypeHandles.Emplace(FieldName, MakeShared<FGCHandle>(TypeHandle));
+	TSharedPtr<FGCHandle> NewTypeHandle = MakeShared<FGCHandle>(TypeHandle);
+	ManagedTypeHandles.Add(FieldName, NewTypeHandle);
+	ManagedHandles.Add(NewTypeHandle);
+	return NewTypeHandle;
 }
 
-TSharedPtr<FGCHandle> UCSManagedAssembly::GetManagedMethod(const TSharedPtr<FGCHandle>& TypeHandle, const FString& MethodName)
+TSharedPtr<FGCHandle> UCSManagedAssembly::FindMethodHandle(const TSharedPtr<FGCHandle>& TypeHandle, const FString& MethodName)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UCSManagedAssembly::GetManagedMethod);
 	UE_LOGFMT(LogUnrealSharp, Verbose, "Looking up managed method {0}", MethodName);
@@ -147,7 +158,7 @@ TSharedPtr<FGCHandle> UCSManagedAssembly::GetManagedMethod(const TSharedPtr<FGCH
 		return nullptr;
 	}
 	
-	return MakeShared<FGCHandle>(MethodHandle);
+	return ManagedHandles.Emplace_GetRef(MakeShared<FGCHandle>(MethodHandle));
 }
 
 TSharedPtr<FCSManagedTypeDefinition> UCSManagedAssembly::FindOrAddManagedTypeDefinition(UClass* Field)
@@ -239,6 +250,7 @@ TSharedPtr<FGCHandle> UCSManagedAssembly::CreateManagedObjectFromNative(const UO
 
 	const FCSObjectID ObjectID = Object->GetUniqueID();
 	UCSManager::Get().GetManagedObjectHandles().AddByHash(ObjectID.Get(), ObjectID, Handle);
+	ManagedHandles.Add(Handle);
 	return Handle;
 }
 
@@ -251,10 +263,10 @@ TSharedPtr<FGCHandle> UCSManagedAssembly::GetOrCreateManagedInterface(UObject* O
 	TSharedPtr<FGCHandle> TypeHandle = ClassInfo->GetTypeGCHandle();
 	
 	const FCSObjectID ObjectID = Object->GetUniqueID();
-	TMap<FCSObjectID, TSharedPtr<FGCHandle>>& TypeMap = UCSManager::Get().GetManagedInterfaceWrappers().FindOrAddByHash(ObjectID.Get(), ObjectID);
+	TMap<FCSObjectID, TSharedPtr<FGCHandle>>& InterfaceWrappersMap = UCSManager::Get().GetManagedInterfaceWrappers().FindOrAddByHash(ObjectID.Get(), ObjectID);
 	
 	const uint32 TypeId = InterfaceClass->GetUniqueID();
-	if (TSharedPtr<FGCHandle>* Existing = TypeMap.FindByHash(TypeId, TypeId))
+	if (TSharedPtr<FGCHandle>* Existing = InterfaceWrappersMap.FindByHash(TypeId, TypeId))
 	{
 		return *Existing;
 	}
@@ -273,8 +285,9 @@ TSharedPtr<FGCHandle> UCSManagedAssembly::GetOrCreateManagedInterface(UObject* O
 	}
 
 	TSharedPtr<FGCHandle> Handle = MakeShared<FGCHandle>(NewManagedObjectWrapper);
+	InterfaceWrappersMap.AddByHash(TypeId, TypeId, Handle);
+	ManagedHandles.Add(Handle);
 	
-	TypeMap.AddByHash(TypeId, TypeId, Handle);
 	return Handle;
 }
 
