@@ -60,4 +60,8 @@
         </Reference>
         
     </ItemGroup>
+    
+    <ItemGroup>
+      <ProjectReference Include="..\..\Build\Scripts\UnrealSharp.Automation.csproj" />
+    </ItemGroup>
 </Project>

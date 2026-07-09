@@ -17,19 +17,22 @@ public static class PackageExporter
         {
             ExportPackage(moduleInfo.Module);
         }
-        
+
         TaskManager.WaitForTasks();
     }
-    
+
     private static void ExportPackage(UhtPackage package)
     {
+        if (package.FullName.Contains("MeshPartition")) {
+            return;
+        }
         string packageName = package.GetModuleShortName();
         string generatedPath = package.GetPackageOutputDirectory();
         bool generatedGlueFolderExists = Directory.Exists(generatedPath);
 
         int childrenCount = package.Children.Count;
         UhtHeaderFile[] processedHeaders = new UhtHeaderFile[childrenCount];
-        
+
         for (int i = 0; i < childrenCount; i++)
         {
             UhtType child = package.Children[i];
@@ -42,10 +45,10 @@ public static class PackageExporter
             {
                 processAction(type);
             }
-            
+
             processedHeaders[i] = child.HeaderFile;
         }
-        
+
         PackageHeadersTracker.RecordPackageHeadersWriteTime(packageName, processedHeaders);
     }
 
@@ -81,7 +84,7 @@ public static class PackageExporter
             {
                 return;
             }
-            
+
             exportAction = () => EnumExporter.ExportEnum(enumObj);
         }
         else if (type is UhtScriptStruct structObj)
@@ -106,7 +109,7 @@ public static class PackageExporter
 
     private static bool IsDelegateType(UhtType type)
     {
-        return type.EngineType == UhtEngineType.Delegate 
+        return type.EngineType == UhtEngineType.Delegate
 #if UE_5_7_OR_LATER
                || type.EngineType == UhtEngineType.SparseDelegate
 #endif

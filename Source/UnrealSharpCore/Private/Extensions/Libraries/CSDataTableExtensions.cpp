@@ -1,11 +1,12 @@
 #include "Extensions/Libraries/CSDataTableExtensions.h"
+#if WITH_EDITOR
 
 #include "AssetToolsModule.h"
 #include "IAssetTools.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "Engine/DataTable.h"
 #include "UObject/SavePackage.h"
 
-#if WITH_EDITOR
 
 namespace
 {
