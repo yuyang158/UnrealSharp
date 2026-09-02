@@ -207,7 +207,10 @@ bool UnrealSharp::DotNetUtilities::BuildUserSolution()
 	{
 		return true;
 	}
-
+	const FString BuildEnvironment = FPlatformMisc::GetEnvironmentVariable(TEXT("UNREAL_SHARP_BUILD"));
+	if (BuildEnvironment != TEXT("TRUE")) {
+		return true;
+	}
 	return Build::BuildUserSolution(Dialogs::MakeOkCancelDialogOnError());
 }
 #endif
