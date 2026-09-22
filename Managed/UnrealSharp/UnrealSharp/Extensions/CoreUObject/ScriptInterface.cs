@@ -39,7 +39,7 @@ public static class ScriptInterfaceExtensions
             return null;
         }
 
-        IntPtr nativeClass = typeof(T).TryGetNativeInterface();
+        IntPtr nativeClass = NativeReflectionHelper.GetNativeField<T>();
         if (nativeClass == IntPtr.Zero)
         {
             return null;
