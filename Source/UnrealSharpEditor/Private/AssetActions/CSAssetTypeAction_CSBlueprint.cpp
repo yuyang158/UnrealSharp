@@ -3,7 +3,6 @@
 #include "CSManager.h"
 #include "CSProjectUtilities.h"
 #include "CSPathsUtilities.h"
-#include "ReflectionData/CSClassReflectionData.h"
 #include "Misc/MessageDialog.h"
 #include "SourceCodeNavigation.h"
 #include "Types/CSBlueprint.h"
@@ -76,7 +75,7 @@ namespace CSAssetTypeAction_CSBlueprint_Private
 			const FName BlueprintName = Blueprint->GetFName();
 			for (const TTuple<FCSFieldName, TSharedPtr<FCSManagedTypeDefinition>>& Pair : OwningAssembly->GetDefinedManagedTypes())
 			{
-				if (Pair.Key.GetFName() == BlueprintName)
+				if (Pair.Key.GetEngineFName() == BlueprintName)
 				{
 					return Pair.Value;
 				}
@@ -105,20 +104,19 @@ namespace CSAssetTypeAction_CSBlueprint_Private
 			return false;
 		}
 
-		const TSharedPtr<FCSTypeReferenceReflectionData> ReflectionData = TypeDefinition->GetReflectionData<FCSTypeReferenceReflectionData>();
-		if (!ReflectionData.IsValid() || ReflectionData->AssemblyName == NAME_None)
+		const FCSFieldName& FieldName = TypeDefinition->GetFieldName();
+		if (FieldName.GetAssemblyName().IsNone())
 		{
 			return false;
 		}
 
-		const FString ProjectDirectory = GetProjectDirectoryForAssembly(ReflectionData->AssemblyName);
+		const FString ProjectDirectory = GetProjectDirectoryForAssembly(FieldName.GetAssemblyName());
 		if (ProjectDirectory.IsEmpty())
 		{
 			return false;
 		}
 
-		const FCSFieldName& FieldName = TypeDefinition->GetFieldName();
-		const FString TypeName = FieldName.GetName();
+		const FString TypeName = FieldName.GetSourceName();
 		const FString CandidatePath = BuildCandidateSourcePath(ProjectDirectory, FieldName.GetNamespace(), TypeName);
 		if (FPaths::FileExists(CandidatePath))
 		{
