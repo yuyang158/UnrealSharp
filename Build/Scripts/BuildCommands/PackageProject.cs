@@ -54,6 +54,11 @@ public class PackageProject : BuildCommand
         IList<string> Arguments = BuildBaseArguments(RuntimeIdentifier, options, PublishFolder);
 
         BuildBindingsSolution(Arguments, options.BuildConfiguration);
+        // Glue csprojs import UnrealSharp.Shared.props which HintPaths Plugins/UnrealSharp/Binaries/Managed.
+        // PackageProject builds bindings with UseDefaultOutputPath (bin/ + PublishDir), so those HintPaths
+        // stay stale unless we sync — CrashReportKit.Managed then resolves UnrealSharp.Core without
+        // ManagedExceptionSite (CS0234) while also ProjectReferencing Core source.
+        SyncPluginManagedBinaries(PublishFolder);
         BuildUserBindings(PublishFolder, options, Arguments);
         BuildUserSolution(PublishFolder, Arguments, options);
         
@@ -178,6 +183,41 @@ public class PackageProject : BuildCommand
     {
         string BindingsPath = Path.Combine(this.GetUnrealSharpRootFolder(), ManagedFolderName, BindingsProjectFolder);
         BuildCommands.BuildSolution.RunBuild(BindingsPath, buildConfig, publish: true, arguments);
+    }
+
+    private void SyncPluginManagedBinaries(string publishFolder)
+    {
+        string PluginManagedBinaries = Path.Combine(this.GetUnrealSharpRootFolder(), "Binaries", "Managed", DotNetUtilities.Version);
+        Directory.CreateDirectory(PluginManagedBinaries);
+
+        string[] AssemblyNames =
+        [
+            "UnrealSharp",
+            "UnrealSharp.Core",
+            "UnrealSharp.Binds",
+            "UnrealSharp.Log",
+            "UnrealSharp.Plugins",
+        ];
+
+        int Copied = 0;
+        foreach (string AssemblyName in AssemblyNames)
+        {
+            foreach (string Extension in new[] { ".dll", ".pdb" })
+            {
+                string Source = Path.Combine(publishFolder, AssemblyName + Extension);
+                if (!File.Exists(Source))
+                {
+                    continue;
+                }
+
+                string Destination = Path.Combine(PluginManagedBinaries, AssemblyName + Extension);
+                File.Copy(Source, Destination, overwrite: true);
+                Copied++;
+            }
+        }
+
+        LoggerUtilities.LogUnrealSharpInfo(
+            $"Synced {Copied} binding artifact(s) to plugin Managed binaries: {PluginManagedBinaries}");
     }
 
     private void BuildUserSolution(string publishFolder, IList<string> buildArguments, PackagingOptions options)
