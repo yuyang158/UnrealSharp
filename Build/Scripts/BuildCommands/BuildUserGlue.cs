@@ -52,7 +52,6 @@ public class BuildUserGlue : BuildCommand
 
         GenerateSolution(command, SolutionDirectory, GlueProjectPaths);
         BuildSolution(command, SolutionDirectory, outputDirectory, buildConfig, GlueProjectPaths, extraArguments);
-        CreateSolutionStamp(SolutionDirectory, GlueProjectPaths);
 
         if (addReferences)
         {
@@ -82,6 +81,9 @@ public class BuildUserGlue : BuildCommand
         
         LoggerUtilities.LogUnrealSharpInfo($"Generating UnrealSharp user solution at {solutionDirectory}...");
         CommandUtilities.RunCommand(nameof(BuildCommands.GenerateSolution), command, CommandParams);
+        // Only stamp after a real regenerate. Writing the stamp when generation was skipped
+        // poisoned the cache (paths listed CrashReportKit while the .sln did not).
+        CreateSolutionStamp(solutionDirectory, glueProjectPaths);
     }
     
     private static string GetStampPath(string solutionDirectory) => Path.Combine(solutionDirectory, "UnrealSharpSolutionStamp.json");
@@ -103,7 +105,19 @@ public class BuildUserGlue : BuildCommand
             return false;
         }
 
-        return glueProjectPaths.ToList().SequenceEqual(glueProjectPaths);
+        List<string> StampedPaths = new List<string>(GlueProjectsArray.Count);
+        foreach (JsonNode? Node in GlueProjectsArray)
+        {
+            string? Path = Node?.GetValue<string>();
+            if (Path is null)
+            {
+                return false;
+            }
+
+            StampedPaths.Add(Path);
+        }
+
+        return StampedPaths.SequenceEqual(glueProjectPaths);
     }
 
     private static void CreateSolutionStamp(string solutionPath, List<string> glueProjectPaths)
