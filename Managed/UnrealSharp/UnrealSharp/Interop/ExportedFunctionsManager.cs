@@ -2,6 +2,7 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using UnrealSharp.Binds;
+using UnrealSharp.Core;
 
 namespace UnrealSharp.Interop;
 
@@ -49,6 +50,7 @@ public static class ExportedFunctionsManager
         }
         catch (Exception ex)
         {
+            ManagedExceptionHooks.Raise(ex, ManagedExceptionSite.ExportedFunctions);
             LogUnrealSharp.LogError($"Failed to initialize native functions: {ex}");
         }
     }

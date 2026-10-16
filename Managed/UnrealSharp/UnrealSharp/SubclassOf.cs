@@ -59,6 +59,7 @@ public struct TSubclassOf<T>
         }
         catch (Exception exception)
         {
+            ManagedExceptionHooks.Raise(exception, ManagedExceptionSite.SubclassOf);
             LogUnrealSharp.Log("Failed to create TSubclassOf instance: " + exception.Message);
         }
     }

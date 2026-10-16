@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using UnrealSharp.Core.Marshallers;
 
@@ -27,6 +27,7 @@ public static class UnmanagedCallbacks
         }
         catch (Exception ex)
         {
+            ManagedExceptionHooks.Raise(ex, ManagedExceptionSite.CreateNewManagedObject);
             LogUnrealSharpCore.LogError($"Failed to create new managed object: {ex.Message}");
             *error = (char*)Marshal.StringToHGlobalUni(ex.ToString());
         }
@@ -73,6 +74,7 @@ public static class UnmanagedCallbacks
         }
         catch (Exception ex)
         {
+            ManagedExceptionHooks.Raise(ex, ManagedExceptionSite.CreateNewManagedObjectWrapper);
             LogUnrealSharpCore.LogError($"Failed to create new managed object: {ex.Message}");
         }
 
@@ -113,6 +115,7 @@ public static class UnmanagedCallbacks
         }
         catch (Exception e)
         {
+            ManagedExceptionHooks.Raise(e, ManagedExceptionSite.LookupManagedMethod);
             LogUnrealSharpCore.LogError($"Exception while trying to look up managed method: {e.Message}");
         }
 
@@ -149,6 +152,7 @@ public static class UnmanagedCallbacks
         }
         catch (Exception e)
         {
+            ManagedExceptionHooks.Raise(e, ManagedExceptionSite.LookupManagedType);
             LogUnrealSharpCore.LogError($"Exception while trying to initialize struct: {e.Message}");
         }
     }
@@ -177,6 +181,7 @@ public static class UnmanagedCallbacks
         }
         catch (TypeLoadException ex)
         {
+            ManagedExceptionHooks.Raise(ex, ManagedExceptionSite.LookupManagedType);
             LogUnrealSharpCore.LogError($"TypeLoadException while trying to look up managed type: {ex.Message}");
             return IntPtr.Zero;
         }
@@ -199,6 +204,7 @@ public static class UnmanagedCallbacks
         }
         catch (Exception ex)
         {
+            ManagedExceptionHooks.Raise(ex, ManagedExceptionSite.InvokeManagedMethod);
             StringMarshaller.ToNative(exceptionTextBuffer, 0, ex.ToString());
             LogUnrealSharpCore.LogError($"Exception during InvokeManagedMethod: {ex.Message}");
             return 1;
@@ -221,6 +227,7 @@ public static class UnmanagedCallbacks
         }
         catch (Exception ex)
         {
+            ManagedExceptionHooks.Raise(ex, ManagedExceptionSite.InvokeDelegate);
             LogUnrealSharpCore.LogError($"Exception during InvokeDelegate: {ex.Message}");
         }
     }

@@ -264,6 +264,7 @@ public record UnrealAsyncFunction : UnrealFunctionBase
 
         builder.AppendLine("catch (Exception e)");
         builder.OpenBrace();
+        builder.AppendLine("UnrealSharp.Core.ManagedExceptionHooks.Raise(e, UnrealSharp.Core.ManagedExceptionSite.AsyncFunction);");
         builder.AppendLine(HasVoidReturn ? "OnTaskCompleted(e.ToString());" : "OnTaskCompleted(_task, e.ToString());");
         builder.AppendLine("return;");
         builder.CloseBrace();
