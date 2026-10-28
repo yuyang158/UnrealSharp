@@ -3,6 +3,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <SolutionDir Condition="'$(SolutionDir)' == ''">$(MSBuildThisFileDirectory)..\..\</SolutionDir>
     <UnrealSharpPluginDir>$(MSBuildThisFileDirectory)</UnrealSharpPluginDir>
+    <UnrealSharpBindingsDir Condition="'$(UnrealSharpBindingsDir)' == ''">$(UnrealSharpPluginDir)Binaries\Managed\$(TargetFramework)</UnrealSharpBindingsDir>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <EnableDynamicLoading>true</EnableDynamicLoading>
     <LangVersion>preview</LangVersion>
@@ -14,23 +15,23 @@
   <ItemGroup>
   
     <Reference Include="UnrealSharp">
-      <HintPath>$(UnrealSharpPluginDir)Binaries\Managed\$(TargetFramework)\UnrealSharp.dll</HintPath>
+      <HintPath>$(UnrealSharpBindingsDir)\UnrealSharp.dll</HintPath>
     </Reference>
 	
 	<Reference Include="UnrealSharp.Binds">
-      <HintPath>$(UnrealSharpPluginDir)Binaries\Managed\$(TargetFramework)\UnrealSharp.Binds.dll</HintPath>
+      <HintPath>$(UnrealSharpBindingsDir)\UnrealSharp.Binds.dll</HintPath>
     </Reference>
 	
     <Reference Include="UnrealSharp.Core">
-      <HintPath>$(UnrealSharpPluginDir)Binaries\Managed\$(TargetFramework)\UnrealSharp.Core.dll</HintPath>
+      <HintPath>$(UnrealSharpBindingsDir)\UnrealSharp.Core.dll</HintPath>
     </Reference>
 	
     <Reference Include="UnrealSharp.Log">
-      <HintPath>$(UnrealSharpPluginDir)Binaries\Managed\$(TargetFramework)\UnrealSharp.Log.dll</HintPath>
+      <HintPath>$(UnrealSharpBindingsDir)\UnrealSharp.Log.dll</HintPath>
     </Reference>
 
     <Reference Include="UnrealSharp.Plugins">
-      <HintPath>$(UnrealSharpPluginDir)Binaries\Managed\$(TargetFramework)\UnrealSharp.Plugins.dll</HintPath>
+      <HintPath>$(UnrealSharpBindingsDir)\UnrealSharp.Plugins.dll</HintPath>
     </Reference>
     
   </ItemGroup>
