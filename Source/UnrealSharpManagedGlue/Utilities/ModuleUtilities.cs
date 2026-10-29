@@ -93,6 +93,7 @@ public static class ModuleUtilities
 
 	private static void Build()
 	{
+		GlueExclusion.Resolve();
 		Dictionary<UhtPackage, List<UhtPackage>> referencedPackages = DiscoverModules();
 		
 		foreach (ModuleInfo module in PackageToModuleInfo.Values)
@@ -235,7 +236,7 @@ public static class ModuleUtilities
 		extenders.Add(moduleInfo);
 	}
 
-	private static List<UhtPackage> CollectReferencedPackages(UhtPackage package)
+	internal static List<UhtPackage> CollectReferencedPackages(UhtPackage package)
 	{
 		HashSet<UhtPackage> references = new();
 

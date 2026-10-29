@@ -1,3 +1,5 @@
 {
-  "ScriptDirectoryName": "Script"
+  "ScriptDirectoryName": "Script",
+  "GlueExcludedModules": [],
+  "GlueExcludedPlugins": []
 }

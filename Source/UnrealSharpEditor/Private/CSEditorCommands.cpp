@@ -23,6 +23,7 @@ void FCSEditorCommands::RegisterCommands()
 	UI_COMMAND(MergeManagedSlnAndNativeSln, "Merge Managed and Native Solution", "Merges the managed sln and native sln into one mixed.sln, coding in one IDE instance. This will create a new sln in the root folder of your project", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(PackageProject, "Package Project", "Package the C# project to the archived directory", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(OpenSettings, "Open Settings...", "Open the Editor Settings", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(OpenGlueExclusionPanel, "C# Glue Modules...", "Choose which modules and plugins generate C# glue", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(OpenDocumentation, "Open Documentation", "Open the Documentation website", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(ReportBug, "Report a Bug", "Open the Issues Github page", EUserInterfaceActionType::Button, FInputChord());
 }

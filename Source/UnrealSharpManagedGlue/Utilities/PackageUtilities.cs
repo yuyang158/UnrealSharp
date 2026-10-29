@@ -63,8 +63,62 @@ public static class PackageUtilities
 
     public static bool ShouldExportPackage(this UhtPackage package)
     {
-        bool foundDefine = package.IsDefineActive(SkipGlueGenerationDefine);
-        return !foundDefine;
+        // SkipGlueGeneration is a hard skip. Config exclusion cannot force the module back on.
+        if (package.IsDefineActive(SkipGlueGenerationDefine))
+        {
+            return false;
+        }
+
+        return GlueExclusion.ShouldExport(package);
+    }
+
+    public static bool TryGetOwningPluginName(this UhtPackage package, out string pluginName, out string pluginRoot)
+    {
+        pluginName = string.Empty;
+        pluginRoot = string.Empty;
+
+        // UHT treats a module as a plugin only when its directory sits under a Plugins folder.
+        if (!package.Module.IsPlugin)
+        {
+            return false;
+        }
+
+        string engineRoot = NormalizeDirectory(GeneratorStatics.EngineDirectory);
+        string projectRoot = NormalizeDirectory(GeneratorStatics.Factory.Session.ProjectDirectory!);
+        DirectoryInfo? currentDirectory = new DirectoryInfo(package.GetModule().BaseDirectory);
+
+        while (currentDirectory != null)
+        {
+            FileInfo[] pluginFiles = currentDirectory.GetFiles("*.uplugin");
+            if (pluginFiles.Length > 0)
+            {
+                Array.Sort(pluginFiles, static (left, right) => string.Compare(left.Name, right.Name, StringComparison.OrdinalIgnoreCase));
+                pluginName = Path.GetFileNameWithoutExtension(pluginFiles[0].Name);
+                pluginRoot = currentDirectory.FullName;
+                return true;
+            }
+
+            if (currentDirectory.GetFiles("*.uproject").Length > 0)
+            {
+                return false;
+            }
+
+            string currentPath = NormalizeDirectory(currentDirectory.FullName);
+            if (string.Equals(currentPath, engineRoot, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(currentPath, projectRoot, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            currentDirectory = currentDirectory.Parent;
+        }
+
+        return false;
+    }
+
+    private static string NormalizeDirectory(string directory)
+    {
+        return Path.TrimEndingDirectorySeparator(Path.GetFullPath(directory));
     }
 
     public static string GetBaseDirectoryForPackage(this UhtPackage package)

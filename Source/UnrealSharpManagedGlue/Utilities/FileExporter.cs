@@ -16,6 +16,11 @@ public static class FileExporter
     
 	public static bool HasModifiedEngineGlue { get; private set; }
 
+	public static void MarkEngineGlueModified()
+	{
+		HasModifiedEngineGlue = true;
+	}
+
 	public static void SaveGlueToDisk(UhtType type, GeneratorStringBuilder stringBuilder)
 	{
 		string directory = type.Package.GetModuleInfo().GlueOutputDirectory;

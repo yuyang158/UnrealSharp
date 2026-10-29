@@ -58,6 +58,11 @@ public static class PackageHeadersTracker
         filestream.Close();
     }
     
+    public static void RemoveModule(string packageName)
+    {
+        _packageHeadersWriteRecord.Remove(packageName);
+    }
+
     public static bool HasModuleBeenExported(string packageName)
     {
         if (_packageHeadersWriteRecord.TryGetValue(packageName, out PackageHeaders? headers))

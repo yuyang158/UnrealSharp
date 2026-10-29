@@ -8,16 +8,22 @@ namespace UnrealSharpManagedGlue.Utilities;
 public static class UnrealSharpSettingsUtilities
 {
     private static Dictionary<string, JsonElement>? _config;
+
+    public static string PluginConfigPath { get; private set; } = string.Empty;
+    public static string ProjectConfigPath { get; private set; } = string.Empty;
     
     public static void InitializeConfigFile(string projectRoot, string unrealSharpRoot)
     {
+        PluginConfigPath = GetConfigFile(unrealSharpRoot);
+        ProjectConfigPath = GetConfigFile(projectRoot);
+
         if (_config != null)
         {
             return;
         }
         
-        string pluginConfigPath = GetConfigFile(unrealSharpRoot);
-        string projectConfigPath = GetConfigFile(projectRoot);
+        string pluginConfigPath = PluginConfigPath;
+        string projectConfigPath = ProjectConfigPath;
 
         _config = LoadJsonAsDictionary(pluginConfigPath);
         Dictionary<string, JsonElement> projectDict = File.Exists(projectConfigPath) ? LoadJsonAsDictionary(projectConfigPath) : new Dictionary<string, JsonElement>();
@@ -36,6 +42,43 @@ public static class UnrealSharpSettingsUtilities
         }
         
         return _config[elementName];
+    }
+
+    public static bool TryGetStringArray(string elementName, out List<string> values)
+    {
+        values = [];
+
+        if (_config == null)
+        {
+            throw new Exception("Run InitializeConfigFile first.");
+        }
+
+        if (!_config.TryGetValue(elementName, out JsonElement element))
+        {
+            return false;
+        }
+
+        if (element.ValueKind != JsonValueKind.Array)
+        {
+            ConsoleUtilities.Log($"Warning: Config key '{elementName}' is not a JSON array and was ignored.");
+            return false;
+        }
+
+        foreach (JsonElement item in element.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.String)
+            {
+                continue;
+            }
+
+            string? text = item.GetString();
+            if (!string.IsNullOrWhiteSpace(text))
+            {
+                values.Add(text);
+            }
+        }
+
+        return true;
     }
     
     static string GetConfigFile(string rootDirectory)

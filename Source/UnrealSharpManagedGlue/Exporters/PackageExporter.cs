@@ -23,9 +23,6 @@ public static class PackageExporter
 
     private static void ExportPackage(UhtPackage package)
     {
-        if (package.FullName.Contains("MeshPartition")) {
-            return;
-        }
         string packageName = package.GetModuleShortName();
         string generatedPath = package.GetPackageOutputDirectory();
         bool generatedGlueFolderExists = Directory.Exists(generatedPath);

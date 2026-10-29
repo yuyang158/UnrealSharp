@@ -17,6 +17,7 @@ public:
 	TSharedPtr<FUICommandInfo> MergeManagedSlnAndNativeSln;
 	TSharedPtr<FUICommandInfo> PackageProject;
 	TSharedPtr<FUICommandInfo> OpenSettings;
+	TSharedPtr<FUICommandInfo> OpenGlueExclusionPanel;
 	TSharedPtr<FUICommandInfo> OpenDocumentation;
 	TSharedPtr<FUICommandInfo> ReportBug;
 };

@@ -29,6 +29,7 @@
 #include "Containers/Set.h"
 #include "Settings/PlatformsMenuSettings.h"
 #include "Slate/SCSTypeWizard.h"
+#include "Slate/SGlueExclusionPanel.h"
 
 #define LOCTEXT_NAMESPACE "FUnrealSharpEditorModule"
 
@@ -71,6 +72,7 @@ void FUnrealSharpEditorModule::StartupModule()
 	RegisterCommands();
 	RegisterToolbar();
     RegisterPluginTemplates();
+	SGlueExclusionPanel::RegisterTab();
 	
 	UCSManager::Get().AddOrExecuteOnManagerInitialized(FCSManagerInitializedEvent::FDelegate::CreateLambda([this](UCSManager& Manager)
 	{
@@ -83,6 +85,7 @@ void FUnrealSharpEditorModule::ShutdownModule()
 	UToolMenus::UnRegisterStartupCallback(this);
 	UToolMenus::UnregisterOwner(this);
     UnregisterPluginTemplates();
+	SGlueExclusionPanel::UnregisterTab();
 }
 
 void FUnrealSharpEditorModule::InitializeManagedEditorCallbacks(FCSManagedEditorCallbacks Callbacks)
@@ -596,6 +599,9 @@ void FUnrealSharpEditorModule::AppendPluginMenu(const FCSEditorCommands& CSComma
 {
 	MenuBuilder.BeginSection("Plugin", LOCTEXT("Plugin", "Plugin"));
 
+	MenuBuilder.AddMenuEntry(CSCommands.OpenGlueExclusionPanel, NAME_None, TAttribute<FText>(), TAttribute<FText>(),
+							 FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Settings"));
+
 	MenuBuilder.AddMenuEntry(CSCommands.OpenSettings, NAME_None, TAttribute<FText>(), TAttribute<FText>(),
 							 FSlateIcon(FAppStyle::Get().GetStyleSetName(), "EditorPreferences.TabIcon"));
 
@@ -641,6 +647,7 @@ void FUnrealSharpEditorModule::RegisterCommands()
 	const FCSEditorCommands& EditorCommands = FCSEditorCommands::Get();
 	
 	UnrealSharpCommands->MapAction(EditorCommands.OpenSettings, FExecuteAction::CreateStatic(&FUnrealSharpEditorModule::OnOpenSettings));
+	UnrealSharpCommands->MapAction(EditorCommands.OpenGlueExclusionPanel, FExecuteAction::CreateStatic(&SGlueExclusionPanel::Open));
 	UnrealSharpCommands->MapAction(EditorCommands.OpenDocumentation, FExecuteAction::CreateStatic(&FUnrealSharpEditorModule::OnOpenDocumentation));
 	UnrealSharpCommands->MapAction(EditorCommands.ReportBug, FExecuteAction::CreateStatic(&FUnrealSharpEditorModule::OnReportBug));
 

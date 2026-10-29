@@ -48,6 +48,7 @@ public static class Program
         ConsoleUtilities.Log("Initializing UnrealSharp C# bindings generator...");
         
         GeneratorStatics.Initialize(factory);
+        AddGlueConfigDependencies(factory);
         ExportBindings();
         
         FileExporter.CleanOldExportedFiles();
@@ -55,6 +56,22 @@ public static class Program
         
         ModuleFactory.SyncModuleProjects();
         BuildUtilities.GenerateUserSolution();
+    }
+
+    private static void AddGlueConfigDependencies(IUhtExportFactory factory)
+    {
+        AddConfigDependency(factory, UnrealSharpSettingsUtilities.PluginConfigPath);
+        AddConfigDependency(factory, UnrealSharpSettingsUtilities.ProjectConfigPath);
+    }
+
+    private static void AddConfigDependency(IUhtExportFactory factory, string? path)
+    {
+        if (string.IsNullOrEmpty(path) || !File.Exists(path))
+        {
+            return;
+        }
+
+        factory.AddExternalDependency(path);
     }
 
     private static void ExportBindings()
