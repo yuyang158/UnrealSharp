@@ -23,6 +23,12 @@ public static class GlueExclusion
 	static readonly Dictionary<string, GlueModuleDecision> Decisions = new(StringComparer.OrdinalIgnoreCase);
 	static bool _resolved;
 
+	public static void Reset()
+	{
+		Decisions.Clear();
+		_resolved = false;
+	}
+
 	public static void Resolve()
 	{
 		if (_resolved)

@@ -11,6 +11,13 @@ public static class UnrealSharpSettingsUtilities
 
     public static string PluginConfigPath { get; private set; } = string.Empty;
     public static string ProjectConfigPath { get; private set; } = string.Empty;
+
+    public static void Reset()
+    {
+        _config = null;
+        PluginConfigPath = string.Empty;
+        ProjectConfigPath = string.Empty;
+    }
     
     public static void InitializeConfigFile(string projectRoot, string unrealSharpRoot)
     {
