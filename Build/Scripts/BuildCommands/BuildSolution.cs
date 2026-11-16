@@ -12,6 +12,7 @@ namespace UnrealSharp.Automation.BuildCommands;
 [Help("Folders=<Path>+<Path>", "One or more solution folders to build. At least one is required.")]
 [Help("Publish", "If set, the solution is published instead of built.")]
 [Help("TargetConfiguration=<Config>", "The build configuration (Debug, DebugGame, Development, Shipping, etc.).")]
+[Help("TargetType=<Type>", "Optional. The target type (Editor, Game, Client, Server). Editor builds use the Debug .NET configuration.")]
 [Help("ExtraArguments=<Arg>+<Arg>", "Additional arguments forwarded to dotnet build/publish.")]
 public class BuildSolution : BuildCommand
 {
@@ -27,16 +28,17 @@ public class BuildSolution : BuildCommand
         bool Publish = ParseParam("Publish");
         UnrealTargetConfiguration TargetConfiguration = ParseRequiredEnumParamEnum<UnrealTargetConfiguration>("TargetConfiguration");
         string[] ExtraArguments = ParseParamValues("ExtraArguments");
+        TargetType? TargetType = ParseOptionalTargetType(this);
 
-        RunBuild(Folders, TargetConfiguration, Publish, ExtraArguments);
+        RunBuild(Folders, TargetConfiguration, Publish, ExtraArguments, TargetType);
     }
 
-    public static void RunBuild(string folder, UnrealTargetConfiguration buildConfig, bool publish, IList<string>? extraArguments = null)
+    public static void RunBuild(string folder, UnrealTargetConfiguration buildConfig, bool publish, IList<string>? extraArguments = null, TargetType? targetType = null)
     {
-        RunBuild([folder], buildConfig, publish, extraArguments);
+        RunBuild([folder], buildConfig, publish, extraArguments, targetType);
     }
 
-    public static void RunBuild(IEnumerable<string> folders, UnrealTargetConfiguration buildConfig, bool publish, IList<string>? extraArguments = null)
+    public static void RunBuild(IEnumerable<string> folders, UnrealTargetConfiguration buildConfig, bool publish, IList<string>? extraArguments = null, TargetType? targetType = null)
     {
         ArgumentNullException.ThrowIfNull(folders);
 
@@ -50,7 +52,7 @@ public class BuildSolution : BuildCommand
         ValidateSolutionFolders(FolderList);
 
         string Action = publish ? "publish" : "build";
-        string ConfigurationName = buildConfig.GetDotNetBuildConfiguration();
+        string ConfigurationName = buildConfig.GetDotNetBuildConfiguration(targetType);
 
         foreach (string SolutionFolder in FolderList)
         {
@@ -93,5 +95,16 @@ public class BuildSolution : BuildCommand
         }
 
         BuildSolutionProcess.StartProcess();
+    }
+
+    internal static TargetType? ParseOptionalTargetType(BuildCommand command)
+    {
+        string? TargetTypeValue = command.ParseOptionalStringParam("TargetType");
+        if (string.IsNullOrEmpty(TargetTypeValue))
+        {
+            return null;
+        }
+
+        return Enum.Parse<TargetType>(TargetTypeValue, ignoreCase: true);
     }
 }

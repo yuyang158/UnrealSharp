@@ -52,7 +52,7 @@ public class BuildUserGlue : BuildCommand
 
         CsProjectUtilities.UpdateUnrealSharpImports(command, GlueProjectPaths);
         GenerateSolution(command, SolutionDirectory, GlueProjectPaths);
-        BuildSolution(command, SolutionDirectory, outputDirectory, buildConfig, GlueProjectPaths, extraArguments);
+        BuildSolution(command, SolutionDirectory, outputDirectory, targetType, buildConfig, GlueProjectPaths, extraArguments);
 
         if (addReferences)
         {
@@ -140,7 +140,7 @@ public class BuildUserGlue : BuildCommand
         LoggerUtilities.LogUnrealSharpInfo("Creating Solution Stamp...");
     }
 
-    private static void BuildSolution(BuildCommand buildCommand, string solutionOutputDirectory, string publishDirectory, UnrealTargetConfiguration buildConfig, List<string> glueProjectPaths, IList<string>? extraArguments)
+    private static void BuildSolution(BuildCommand buildCommand, string solutionOutputDirectory, string publishDirectory, TargetType targetType, UnrealTargetConfiguration buildConfig, List<string> glueProjectPaths, IList<string>? extraArguments)
     {
         LoggerUtilities.LogUnrealSharpInfo($"Building UnrealSharp glue projects in {solutionOutputDirectory} with build configuration {buildConfig}...");
 
@@ -153,6 +153,7 @@ public class BuildUserGlue : BuildCommand
         {
             new("SolutionDirectory", solutionOutputDirectory),
             new("TargetConfiguration", buildConfig.ToString()),
+            new("TargetType", targetType.ToString()),
             new("OutputPath", publishDirectory),
             new("LoadOrderName", LoadOrderUtilities.GlueLoadOrderName),
             new("IsCollectible", "false"),

@@ -66,6 +66,16 @@ public static class DotNetSdkUtilities
     
     public static string GetDotNetBuildConfiguration(this UnrealTargetConfiguration configuration)
     {
+        return configuration.GetDotNetBuildConfiguration(targetType: null);
+    }
+
+    public static string GetDotNetBuildConfiguration(this UnrealTargetConfiguration configuration, TargetType? targetType)
+    {
+        if (targetType == TargetType.Editor)
+        {
+            return "Debug";
+        }
+
         if (configuration == UnrealTargetConfiguration.Debug || configuration == UnrealTargetConfiguration.DebugGame)
         {
             return "Debug";

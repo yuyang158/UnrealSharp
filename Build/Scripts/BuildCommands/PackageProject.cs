@@ -53,7 +53,7 @@ public class PackageProject : BuildCommand
         string RuntimeIdentifier = DotNetSdkUtilities.GetDotNetRuntimeIdentifier(options.TargetPlatform, options.TargetArchitecture);
         IList<string> Arguments = BuildBaseArguments(RuntimeIdentifier, options, PublishFolder);
 
-        BuildBindingsSolution(Arguments, options.BuildConfiguration);
+        BuildBindingsSolution(Arguments, options.BuildConfiguration, options.TargetType);
 
         List<string> UserBuildArguments = new List<string>(Arguments);
         UserBuildArguments.Add($"-p:UnrealSharpBindingsDir={Path.TrimEndingDirectorySeparator(PublishFolder)}");
@@ -177,10 +177,10 @@ public class PackageProject : BuildCommand
         ];
     }
 
-    private void BuildBindingsSolution(IList<string> arguments, UnrealTargetConfiguration buildConfig)
+    private void BuildBindingsSolution(IList<string> arguments, UnrealTargetConfiguration buildConfig, TargetType targetType)
     {
         string BindingsPath = Path.Combine(this.GetUnrealSharpRootFolder(), ManagedFolderName, BindingsProjectFolder);
-        BuildCommands.BuildSolution.RunBuild(BindingsPath, buildConfig, publish: true, arguments);
+        BuildCommands.BuildSolution.RunBuild(BindingsPath, buildConfig, publish: true, arguments, targetType);
     }
 
     private void BuildUserSolution(string publishFolder, IList<string> buildArguments, PackagingOptions options)
@@ -208,7 +208,7 @@ public class PackageProject : BuildCommand
             }
         }
 
-        BuildCommands.BuildSolution.RunBuild(SolutionDirectory, options.BuildConfiguration, publish: true, BuildUserSolutionArguments);
+        BuildCommands.BuildSolution.RunBuild(SolutionDirectory, options.BuildConfiguration, publish: true, BuildUserSolutionArguments, options.TargetType);
         
         EmitUserLoadOrder(publishFolder, ProjectFiles);
     }

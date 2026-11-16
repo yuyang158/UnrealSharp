@@ -13,6 +13,7 @@ namespace UnrealSharp.Automation.BuildCommands;
 [Help("LoadOrderName=<Name>", "Name for the emitted load order file, without extension.")]
 [Help("OutputPath=<Path>", "Output path for the build output and emitted load order.")]
 [Help("TargetConfiguration=<Config>", "The build configuration (Debug, DebugGame, Development, Shipping, etc.).")]
+[Help("TargetType=<Type>", "Optional. The target type (Editor, Game, Client, Server). Editor builds use the Debug .NET configuration.")]
 [Help("clp=<Args>", "Optional CLP arguments to pass to the build process.")]
 [Help("ExtraArguments=<Arg>+<Arg>", "Additional arguments forwarded to dotnet build/publish.")]
 [Help("IsCollectible=<true/false>", "Whether the emitted assemblies should be marked as collectible. Defaults to false when omitted.")]
@@ -37,8 +38,9 @@ public class BuildEmitLoadOrder : BuildCommand
         };
 
         List<string> BuildArguments = BuildSolutionArguments(OutputPath);
+        TargetType? TargetType = BuildCommands.BuildSolution.ParseOptionalTargetType(this);
 
-        BuildCommands.BuildSolution.RunBuild(SolutionPath, TargetConfiguration, publish: true, BuildArguments);
+        BuildCommands.BuildSolution.RunBuild(SolutionPath, TargetConfiguration, publish: true, BuildArguments, TargetType);
         
         EmitLoadOrder(Projects, LoadOrderName, OutputPath, Options);
         if (LoadOrderName == LoadOrderUtilities.UserLoadOrderName)
