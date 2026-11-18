@@ -3,6 +3,7 @@
 #include "CSManager.h"
 #include "CSProjectUtilities.h"
 #include "CSPathsUtilities.h"
+#include "CSSourceCodeNavigation.h"
 #include "Misc/MessageDialog.h"
 #include "SourceCodeNavigation.h"
 #include "Types/CSBlueprint.h"
@@ -168,6 +169,16 @@ void FCSAssetTypeAction_CSBlueprint::OpenAssetEditor(const TArray<UObject*>& InO
 			continue;
 		}
 
+		const UCSClass* ManagedClass = Cast<UCSClass>(Blueprint->GeneratedClass);
+		const FCSManagedEditorCallbacks& Callbacks = FUnrealSharpEditorModule::Get().GetManagedEditorCallbacks();
+		if (IsValid(ManagedClass) && ManagedClass->HasManagedTypeDefinition() && Callbacks.FindClassSource)
+		{
+			// Upstream #812: Roslyn-backed navigation with line/column in the selected source editor.
+			FCSSourceCodeNavigation::OpenClass(Blueprint->GeneratedClass);
+			continue;
+		}
+
+		// Fork fallback: filesystem lookup when the C# solution/type metadata is not ready yet.
 		CSAssetTypeAction_CSBlueprint_Private::OpenManagedSourceFile(Blueprint);
 	}
 }
