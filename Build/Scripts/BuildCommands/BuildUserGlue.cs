@@ -86,6 +86,22 @@ public class BuildUserGlue : BuildCommand
         // poisoned the cache (paths listed CrashReportKit while the .sln did not).
         CreateSolutionStamp(solutionDirectory, glueProjectPaths);
     }
+
+    private static bool SolutionContainsProjects(string solutionDirectory, List<string> glueProjectPaths)
+    {
+        string[] SolutionFiles = Directory.Exists(solutionDirectory)
+            ? Directory.GetFiles(solutionDirectory, "*.sln*")
+            : Array.Empty<string>();
+
+        if (SolutionFiles.Length == 0)
+        {
+            return false;
+        }
+
+        string SolutionContent = File.ReadAllText(SolutionFiles[0]);
+        return glueProjectPaths.All(ProjectPath =>
+            SolutionContent.Contains(Path.GetFileName(ProjectPath), StringComparison.OrdinalIgnoreCase));
+    }
     
     private static string GetStampPath(string solutionDirectory) => Path.Combine(solutionDirectory, "UnrealSharpSolutionStamp.json");
 
@@ -93,7 +109,7 @@ public class BuildUserGlue : BuildCommand
     {
         string SolutionStampPath = GetStampPath(solutionDirectory);
 
-        if (!File.Exists(SolutionStampPath))
+        if (!File.Exists(SolutionStampPath) || !SolutionContainsProjects(solutionDirectory, glueProjectPaths))
         {
             return false;
         }
@@ -109,16 +125,18 @@ public class BuildUserGlue : BuildCommand
         List<string> StampedPaths = new List<string>(GlueProjectsArray.Count);
         foreach (JsonNode? Node in GlueProjectsArray)
         {
-            string? Path = Node?.GetValue<string>();
-            if (Path is null)
+            string? StampedPath = Node?.GetValue<string>();
+            if (StampedPath is null)
             {
                 return false;
             }
 
-            StampedPaths.Add(Path);
+            StampedPaths.Add(StampedPath);
         }
 
-        return StampedPaths.SequenceEqual(glueProjectPaths);
+        IEnumerable<string> OrderedStampedPaths = StampedPaths.Order(StringComparer.OrdinalIgnoreCase);
+        IEnumerable<string> CurrentPaths = glueProjectPaths.Order(StringComparer.OrdinalIgnoreCase);
+        return OrderedStampedPaths.SequenceEqual(CurrentPaths, StringComparer.OrdinalIgnoreCase);
     }
 
     private static void CreateSolutionStamp(string solutionPath, List<string> glueProjectPaths)
