@@ -3,5 +3,6 @@
     <TargetFramework>{DOTNET_VERSION}</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <Configurations>Debug;Release;Development</Configurations>
   </PropertyGroup>
 </Project>
