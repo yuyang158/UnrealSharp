@@ -24,7 +24,10 @@ DECLARE_UNREALSHARP_BINDER(Bind_FUnrealSharpEditorModule)
 	
 	void NotifyNewType()
 	{
-		UCSHotReloadSubsystem::Get()->NotifyNewType();
+		if (UCSHotReloadSubsystem* HotReloadSubsystem = UCSHotReloadSubsystem::Get())
+		{
+			HotReloadSubsystem->NotifyNewType();
+		}
 	}
 	
 	BIND_UNREALSHARP_FUNCTION(InitializeUnrealSharpEditorCallbacks)

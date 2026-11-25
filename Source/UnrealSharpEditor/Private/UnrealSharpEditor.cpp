@@ -164,7 +164,10 @@ void FUnrealSharpEditorModule::OnCreateNewProject()
 
 void FUnrealSharpEditorModule::OnCompileManagedCode()
 {
-	UCSHotReloadSubsystem::Get()->PerformHotReload();
+	if (UCSHotReloadSubsystem* HotReloadSubsystem = UCSHotReloadSubsystem::Get())
+	{
+		HotReloadSubsystem->PerformHotReload();
+	}
 }
 
 void FUnrealSharpEditorModule::OnCreateNewClass()
@@ -609,7 +612,8 @@ TSharedRef<SWidget> FUnrealSharpEditorModule::GenerateUnrealSharpToolbar() const
     const FCSEditorCommands& CSCommands = FCSEditorCommands::Get();
     FMenuBuilder MenuBuilder(true, UnrealSharpCommands);
 
-    if (UnrealSharp::InstallationUtilities::IsDotNetSdkInstalled())
+    if (UnrealSharp::InstallationUtilities::IsDotNetSdkInstalled()
+        && UnrealSharp::InstallationUtilities::IsUnrealSharpBuildEnabled())
     {
     	AppendBuildMenu(CSCommands, MenuBuilder);
     	AppendCodeMenu(CSCommands, MenuBuilder);
@@ -729,7 +733,8 @@ void FUnrealSharpEditorModule::RegisterCommands()
 	UnrealSharpCommands->MapAction(EditorCommands.OpenDocumentation, FExecuteAction::CreateStatic(&FUnrealSharpEditorModule::OnOpenDocumentation));
 	UnrealSharpCommands->MapAction(EditorCommands.ReportBug, FExecuteAction::CreateStatic(&FUnrealSharpEditorModule::OnReportBug));
 
-	if (UnrealSharp::InstallationUtilities::IsDotNetSdkInstalled())
+	if (UnrealSharp::InstallationUtilities::IsDotNetSdkInstalled()
+		&& UnrealSharp::InstallationUtilities::IsUnrealSharpBuildEnabled())
 	{
 		UnrealSharpCommands->MapAction(EditorCommands.HotReload, FExecuteAction::CreateStatic(&FUnrealSharpEditorModule::OnCompileManagedCode));
 		UnrealSharpCommands->MapAction(EditorCommands.CreateNewProject, FExecuteAction::CreateStatic(&FUnrealSharpEditorModule::OnCreateNewProject));
@@ -809,7 +814,10 @@ void FUnrealSharpEditorModule::LoadNewProject(const FString& ModuleName, const F
 {
 	UnrealSharp::Build::BuildUserSolution();
 	UCSManager::Get().LoadUserAssemblyByName(*ModuleName, true);
-	UCSHotReloadSubsystem::Get()->PauseHotReload(TEXT("Loading new C# project"));
+	if (UCSHotReloadSubsystem* HotReloadSubsystem = UCSHotReloadSubsystem::Get())
+	{
+		HotReloadSubsystem->PauseHotReload(TEXT("Loading new C# project"));
+	}
 	ManagedUnrealSharpEditorCallbacks.LoadProject(*ModulePath, (void*)&FUnrealSharpEditorModule::OnProjectLoaded);
 }
 
@@ -817,8 +825,11 @@ void FUnrealSharpEditorModule::OnProjectLoaded()
 {
 	AsyncTask(ENamedThreads::GameThread, []()
 	{
-		UCSHotReloadSubsystem::Get()->ResumeHotReload();
-		UCSHotReloadSubsystem::Get()->RefreshDirectoryWatchers();
+		if (UCSHotReloadSubsystem* HotReloadSubsystem = UCSHotReloadSubsystem::Get())
+		{
+			HotReloadSubsystem->ResumeHotReload();
+			HotReloadSubsystem->RefreshDirectoryWatchers();
+		}
 	});
 }
 

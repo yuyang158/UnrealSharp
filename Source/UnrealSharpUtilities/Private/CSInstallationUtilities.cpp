@@ -27,3 +27,9 @@ bool UnrealSharp::InstallationUtilities::IsDotNetSdkInstalled()
 {
 	return DotNetUtilities::GetDotNetDirectory().Len() > 0;
 }
+
+bool UnrealSharp::InstallationUtilities::IsUnrealSharpBuildEnabled()
+{
+	const FString BuildEnvironment = FPlatformMisc::GetEnvironmentVariable(TEXT("UNREAL_SHARP_BUILD"));
+	return BuildEnvironment == TEXT("TRUE");
+}

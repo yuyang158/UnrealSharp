@@ -46,7 +46,9 @@ void UCSHotReloadSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 bool UCSHotReloadSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 {
-	return !IsRunningCommandlet() && UnrealSharp::InstallationUtilities::IsDotNetSdkInstalled();
+	return !IsRunningCommandlet()
+		&& UnrealSharp::InstallationUtilities::IsDotNetSdkInstalled()
+		&& UnrealSharp::InstallationUtilities::IsUnrealSharpBuildEnabled();
 }
 
 void UCSHotReloadSubsystem::Deinitialize()
@@ -59,7 +61,10 @@ void UCSHotReloadSubsystem::OnHotReloadReady_Callback()
 {
 	AsyncTask(ENamedThreads::GameThread, []()
 	{
-		Get()->OnHotReloadReady();
+		if (UCSHotReloadSubsystem* Subsystem = Get())
+		{
+			Subsystem->OnHotReloadReady();
+		}
 	});
 }
 

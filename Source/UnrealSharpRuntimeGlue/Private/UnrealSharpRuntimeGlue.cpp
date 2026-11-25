@@ -92,7 +92,8 @@ void FUnrealSharpRuntimeGlueModule::InitializeCommands()
 
 void FUnrealSharpRuntimeGlueModule::OnBuildingToolbar(FMenuBuilder& MenuBuilder)
 {
-	if (!UnrealSharp::InstallationUtilities::IsDotNetSdkInstalled())
+	if (!UnrealSharp::InstallationUtilities::IsDotNetSdkInstalled()
+		|| !UnrealSharp::InstallationUtilities::IsUnrealSharpBuildEnabled())
 	{
 		return;
 	}
