@@ -2,6 +2,7 @@
 
 #include "Framework/Notifications/NotificationManager.h"
 #include "Features/IModularFeatures.h"
+#include "Misc/FileHelper.h"
 #include "ISourceCodeAccessor.h"
 #include "ISourceCodeAccessModule.h"
 #include "Misc/App.h"
@@ -511,6 +512,213 @@ namespace
 {
 	static const FName SourceCodeAccessorFeatureName(TEXT("SourceCodeAccessor"));
 
+	bool LineHasFunctionToken(const FString& Line, const FString& Token)
+	{
+		int32 SearchFrom = 0;
+		while (SearchFrom < Line.Len())
+		{
+			const int32 Found = Line.Find(Token, ESearchCase::CaseSensitive, ESearchDir::FromStart, SearchFrom);
+			if (Found == INDEX_NONE)
+			{
+				return false;
+			}
+
+			const int32 End = Found + Token.Len();
+			const bool bContinuesIdentifier = End < Line.Len() && (FChar::IsAlnum(Line[End]) || Line[End] == TEXT('_'));
+			if (!bContinuesIdentifier)
+			{
+				return true;
+			}
+
+			SearchFrom = End;
+		}
+
+		return false;
+	}
+
+	int32 FindFunctionLine(const TArray<FString>& Lines, const FString& QualifiedToken, const FString& ImplementationToken)
+	{
+		int32 QualifiedLine = INDEX_NONE;
+		for (int32 Index = 0; Index < Lines.Num(); ++Index)
+		{
+			if (LineHasFunctionToken(Lines[Index], ImplementationToken))
+			{
+				return Index + 1;
+			}
+
+			if (QualifiedLine == INDEX_NONE && LineHasFunctionToken(Lines[Index], QualifiedToken))
+			{
+				QualifiedLine = Index + 1;
+			}
+		}
+
+		return QualifiedLine;
+	}
+
+	FString FindSiblingCpp(const FString& HeaderPath)
+	{
+		const FString CppName = FPaths::GetBaseFilename(HeaderPath) + TEXT(".cpp");
+		const FString SameFolderCpp = FPaths::GetPath(HeaderPath) / CppName;
+		if (FPaths::FileExists(SameFolderCpp))
+		{
+			return SameFolderCpp;
+		}
+
+		FString SwappedHeader = HeaderPath;
+		FPaths::NormalizeFilename(SwappedHeader);
+		SwappedHeader.ReplaceInline(TEXT("/Public/"), TEXT("/Private/"));
+		SwappedHeader.ReplaceInline(TEXT("/Classes/"), TEXT("/Private/"));
+		const FString SwappedCpp = FPaths::GetPath(SwappedHeader) / CppName;
+		if (FPaths::FileExists(SwappedCpp))
+		{
+			return SwappedCpp;
+		}
+
+		return FString();
+	}
+
+	// PDB line info for a UFUNCTION points at the UHT thunk in Intermediate/.../UHT/*.gen.cpp.
+	// The authored declaration and body live in the module source named by ModuleRelativePath.
+	bool TryRedirectUhtGeneratedFile(FString& InOutPath, int32& InOutLine, int32& InOutColumn)
+	{
+		FString NormalizedPath = InOutPath;
+		FPaths::NormalizeFilename(NormalizedPath);
+		if (!NormalizedPath.Contains(TEXT("/Intermediate/")) || !NormalizedPath.EndsWith(TEXT(".gen.cpp")))
+		{
+			return false;
+		}
+
+		const int32 IncIndex = NormalizedPath.Find(TEXT("/Inc/"), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
+		if (IncIndex == INDEX_NONE)
+		{
+			return false;
+		}
+
+		FString ModuleName;
+		FString Remainder;
+		if (!NormalizedPath.Mid(IncIndex + 5).Split(TEXT("/"), &ModuleName, &Remainder) || ModuleName.IsEmpty())
+		{
+			return false;
+		}
+
+		FString ModuleBasePath;
+		if (!FSourceCodeNavigation::FindModulePath(ModuleName, ModuleBasePath))
+		{
+			const FString ProjectModulePath = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir() / TEXT("Source") / ModuleName);
+			if (!FPaths::DirectoryExists(ProjectModulePath))
+			{
+				return false;
+			}
+			ModuleBasePath = ProjectModulePath;
+		}
+
+		TArray<FString> GeneratedLines;
+		if (!FFileHelper::LoadFileToStringArray(GeneratedLines, *InOutPath) || GeneratedLines.IsEmpty())
+		{
+			return false;
+		}
+
+		FString RelativeHeaderPath;
+		FString FunctionName;
+		const int32 StartLine = FMath::Clamp(InOutLine - 1, 0, GeneratedLines.Num() - 1);
+		for (int32 Index = StartLine; Index >= 0; --Index)
+		{
+			const FString& Line = GeneratedLines[Index];
+			if (RelativeHeaderPath.IsEmpty())
+			{
+				const FString PathMarker = TEXT("\"ModuleRelativePath\", \"");
+				const int32 MarkerIndex = Line.Find(PathMarker, ESearchCase::CaseSensitive);
+				if (MarkerIndex != INDEX_NONE)
+				{
+					const FString AfterMarker = Line.Mid(MarkerIndex + PathMarker.Len());
+					int32 QuoteIndex = INDEX_NONE;
+					if (AfterMarker.FindChar(TEXT('"'), QuoteIndex))
+					{
+						RelativeHeaderPath = AfterMarker.Left(QuoteIndex);
+					}
+				}
+			}
+
+			if (FunctionName.IsEmpty() && Line.Contains(TEXT("Begin Class")) && Line.Contains(TEXT(" Function ")))
+			{
+				const int32 FunctionIndex = Line.Find(TEXT(" Function "), ESearchCase::CaseSensitive);
+				FString Name = Line.Mid(FunctionIndex + 10);
+				int32 StarIndex = INDEX_NONE;
+				if (Name.FindChar(TEXT('*'), StarIndex))
+				{
+					Name = Name.Left(StarIndex);
+				}
+				Name.TrimStartAndEndInline();
+				FunctionName = Name;
+			}
+
+			if (!RelativeHeaderPath.IsEmpty() && !FunctionName.IsEmpty())
+			{
+				break;
+			}
+
+			if (Index < StartLine && Line.Contains(TEXT("End Class")) && Line.Contains(TEXT("Function")))
+			{
+				break;
+			}
+		}
+
+		if (RelativeHeaderPath.IsEmpty())
+		{
+			return false;
+		}
+
+		const FString HeaderPath = FPaths::ConvertRelativePathToFull(ModuleBasePath / RelativeHeaderPath);
+		if (!FPaths::FileExists(HeaderPath))
+		{
+			return false;
+		}
+
+		FString OpenPath = HeaderPath;
+		int32 OpenLine = 1;
+		if (!FunctionName.IsEmpty())
+		{
+			const FString QualifiedToken = FString::Printf(TEXT("::%s"), *FunctionName);
+			const FString ImplementationToken = FString::Printf(TEXT("::%s_Implementation"), *FunctionName);
+			const FString CppPath = FindSiblingCpp(HeaderPath);
+			if (!CppPath.IsEmpty())
+			{
+				TArray<FString> CppLines;
+				if (FFileHelper::LoadFileToStringArray(CppLines, *CppPath))
+				{
+					const int32 CppLine = FindFunctionLine(CppLines, QualifiedToken, ImplementationToken);
+					if (CppLine != INDEX_NONE)
+					{
+						OpenPath = CppPath;
+						OpenLine = CppLine;
+					}
+				}
+			}
+
+			if (OpenPath == HeaderPath)
+			{
+				TArray<FString> HeaderLines;
+				if (FFileHelper::LoadFileToStringArray(HeaderLines, *HeaderPath))
+				{
+					for (int32 Index = 0; Index < HeaderLines.Num(); ++Index)
+					{
+						if (LineHasFunctionToken(HeaderLines[Index], FunctionName) && HeaderLines[Index].Contains(TEXT("(")))
+						{
+							OpenLine = Index + 1;
+							break;
+						}
+					}
+				}
+			}
+		}
+
+		UE_LOG(LogUnrealSharpEditor, Log, TEXT("Redirected UHT file '%s' to '%s:%d'."), *NormalizedPath, *OpenPath, OpenLine);
+		InOutPath = OpenPath;
+		InOutLine = OpenLine;
+		InOutColumn = 1;
+		return true;
+	}
+
 	class FRunningVisualStudioSourceAccessor final : public ISourceCodeAccessor
 	{
 	public:
@@ -530,21 +738,30 @@ namespace
 
 		virtual bool OpenFileAtLine(const FString& FullPath, int32 LineNumber, int32 ColumnNumber) override
 		{
-			if (FProjectSourceCodeNavigation::TryOpenInRunningVisualStudio(FullPath, LineNumber, ColumnNumber))
+			FString Path = FullPath;
+			int32 Line = LineNumber;
+			int32 Column = ColumnNumber;
+			TryRedirectUhtGeneratedFile(Path, Line, Column);
+
+			if (FProjectSourceCodeNavigation::TryOpenInRunningVisualStudio(Path, Line, Column))
 			{
 				return true;
 			}
 
-			return Inner->OpenFileAtLine(FullPath, LineNumber, ColumnNumber);
+			return Inner->OpenFileAtLine(Path, Line, Column);
 		}
 
 		virtual bool OpenSourceFiles(const TArray<FString>& AbsoluteSourcePaths) override
 		{
 			TArray<FString> Remaining;
 			bool bOpenedAny = false;
-			for (const FString& Path : AbsoluteSourcePaths)
+			for (const FString& SourcePath : AbsoluteSourcePaths)
 			{
-				if (FProjectSourceCodeNavigation::TryOpenInRunningVisualStudio(Path, 1, 1))
+				FString Path = SourcePath;
+				int32 Line = 1;
+				int32 Column = 1;
+				TryRedirectUhtGeneratedFile(Path, Line, Column);
+				if (FProjectSourceCodeNavigation::TryOpenInRunningVisualStudio(Path, Line, Column))
 				{
 					bOpenedAny = true;
 				}
