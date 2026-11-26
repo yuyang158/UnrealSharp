@@ -1,6 +1,7 @@
 #include "CSSourceCodeNavigation.h"
 
 #include "Framework/Notifications/NotificationManager.h"
+#include "Features/IModularFeatures.h"
 #include "ISourceCodeAccessor.h"
 #include "ISourceCodeAccessModule.h"
 #include "Misc/App.h"
@@ -505,5 +506,122 @@ bool FCSSourceCodeNavigation::TryOpenInRunningVisualStudio(const FString& FullPa
 	return false;
 }
 #endif
+
+namespace
+{
+	static const FName SourceCodeAccessorFeatureName(TEXT("SourceCodeAccessor"));
+
+	class FRunningVisualStudioSourceAccessor final : public ISourceCodeAccessor
+	{
+	public:
+		explicit FRunningVisualStudioSourceAccessor(ISourceCodeAccessor& InInner)
+			: Inner(&InInner)
+		{
+		}
+
+		virtual void RefreshAvailability() override { Inner->RefreshAvailability(); }
+		virtual bool CanAccessSourceCode() const override { return Inner->CanAccessSourceCode(); }
+		virtual FName GetFName() const override { return Inner->GetFName(); }
+		virtual FText GetNameText() const override { return Inner->GetNameText(); }
+		virtual FText GetDescriptionText() const override { return Inner->GetDescriptionText(); }
+		virtual bool OpenSolution() override { return Inner->OpenSolution(); }
+		virtual bool OpenSolutionAtPath(const FString& InSolutionPath) override { return Inner->OpenSolutionAtPath(InSolutionPath); }
+		virtual bool DoesSolutionExist() const override { return Inner->DoesSolutionExist(); }
+
+		virtual bool OpenFileAtLine(const FString& FullPath, int32 LineNumber, int32 ColumnNumber) override
+		{
+			if (FCSSourceCodeNavigation::TryOpenInRunningVisualStudio(FullPath, LineNumber, ColumnNumber))
+			{
+				return true;
+			}
+
+			return Inner->OpenFileAtLine(FullPath, LineNumber, ColumnNumber);
+		}
+
+		virtual bool OpenSourceFiles(const TArray<FString>& AbsoluteSourcePaths) override
+		{
+			TArray<FString> Remaining;
+			bool bOpenedAny = false;
+			for (const FString& Path : AbsoluteSourcePaths)
+			{
+				if (FCSSourceCodeNavigation::TryOpenInRunningVisualStudio(Path, 1, 1))
+				{
+					bOpenedAny = true;
+				}
+				else
+				{
+					Remaining.Add(Path);
+				}
+			}
+
+			if (Remaining.IsEmpty())
+			{
+				return bOpenedAny;
+			}
+
+			return Inner->OpenSourceFiles(Remaining) || bOpenedAny;
+		}
+
+		virtual bool AddSourceFiles(const TArray<FString>& AbsoluteSourcePaths, const TArray<FString>& AvailableModules) override
+		{
+			return Inner->AddSourceFiles(AbsoluteSourcePaths, AvailableModules);
+		}
+
+		virtual bool SaveAllOpenDocuments() const override { return Inner->SaveAllOpenDocuments(); }
+		virtual void Tick(const float DeltaTime) override { Inner->Tick(DeltaTime); }
+		virtual FName GetOpenIconName() const override { return Inner->GetOpenIconName(); }
+		virtual FName GetRefreshIconName() const override { return Inner->GetRefreshIconName(); }
+		virtual FName GetStyleSet() const override { return Inner->GetStyleSet(); }
+
+	private:
+		ISourceCodeAccessor* Inner = nullptr;
+	};
+
+	FRunningVisualStudioSourceAccessor* GRunningVisualStudioRedirect = nullptr;
+	ISourceCodeAccessor* GRedirectedVisualStudioAccessor = nullptr;
+
+	bool IsVisualStudioAccessorName(const FString& AccessorName)
+	{
+		return AccessorName.StartsWith(TEXT("VisualStudio")) && !AccessorName.StartsWith(TEXT("VisualStudioCode"));
+	}
+}
+
+void FCSSourceCodeNavigation::InstallRunningVisualStudioRedirect()
+{
+	if (GRunningVisualStudioRedirect)
+	{
+		return;
+	}
+
+	ISourceCodeAccessModule& SourceCodeAccessModule = FModuleManager::LoadModuleChecked<ISourceCodeAccessModule>(TEXT("SourceCodeAccess"));
+	ISourceCodeAccessor& CurrentAccessor = SourceCodeAccessModule.GetAccessor();
+	if (!IsVisualStudioAccessorName(CurrentAccessor.GetFName().ToString()))
+	{
+		return;
+	}
+
+	GRedirectedVisualStudioAccessor = &CurrentAccessor;
+	GRunningVisualStudioRedirect = new FRunningVisualStudioSourceAccessor(CurrentAccessor);
+	IModularFeatures::Get().UnregisterModularFeature(SourceCodeAccessorFeatureName, GRedirectedVisualStudioAccessor);
+	IModularFeatures::Get().RegisterModularFeature(SourceCodeAccessorFeatureName, GRunningVisualStudioRedirect);
+}
+
+void FCSSourceCodeNavigation::RemoveRunningVisualStudioRedirect()
+{
+	if (!GRunningVisualStudioRedirect)
+	{
+		return;
+	}
+
+	IModularFeatures::Get().UnregisterModularFeature(SourceCodeAccessorFeatureName, GRunningVisualStudioRedirect);
+	if (GRedirectedVisualStudioAccessor)
+	{
+		IModularFeatures::Get().RegisterModularFeature(SourceCodeAccessorFeatureName, GRedirectedVisualStudioAccessor);
+	}
+
+	delete GRunningVisualStudioRedirect;
+	GRunningVisualStudioRedirect = nullptr;
+	GRedirectedVisualStudioAccessor = nullptr;
+}
 
 #undef LOCTEXT_NAMESPACE

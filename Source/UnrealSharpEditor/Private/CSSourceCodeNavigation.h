@@ -10,6 +10,10 @@ public:
 	// UE_Client.Mixed.sln instance is missed and a second Visual Studio is started.
 	static bool TryOpenInRunningVisualStudio(const FString& FullPath, int32 LineNumber, int32 ColumnNumber);
 
+	// Blueprint C++ jumps call the selected source accessor directly, which does not see Mixed.sln.
+	static void InstallRunningVisualStudioRedirect();
+	static void RemoveRunningVisualStudioRedirect();
+
 	static bool OpenClass(const UClass* Class);
 
 	virtual bool CanNavigateToClass(const UClass* Class) override;

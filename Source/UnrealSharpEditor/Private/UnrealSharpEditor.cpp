@@ -61,6 +61,7 @@ void FUnrealSharpEditorModule::StartupModule()
 	}
 	SourceCodeNavigation = MakeShared<FCSSourceCodeNavigation>();
 	FSourceCodeNavigation::AddNavigationHandler(SourceCodeNavigation.Get());
+	FCSSourceCodeNavigation::InstallRunningVisualStudioRedirect();
 	// Runtime glue can load this module before GEditor exists. Kismet requires an initialized editor.
 	if (GEditor)
 	{
@@ -127,6 +128,7 @@ void FUnrealSharpEditorModule::ShutdownModule()
 		}
 	}
 	RegisteredAssetTypeActions.Reset();
+	FCSSourceCodeNavigation::RemoveRunningVisualStudioRedirect();
 	FSourceCodeNavigation::RemoveNavigationHandler(SourceCodeNavigation.Get());
 	SourceCodeNavigation.Reset();
 	UToolMenus::UnRegisterStartupCallback(this);
