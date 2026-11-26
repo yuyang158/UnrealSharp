@@ -21,7 +21,7 @@ class UCSManager;
 class IAssetTools;
 class IAssetTypeActions;
 class FCSScriptBuilder;
-class FCSSourceCodeNavigation;
+class FProjectSourceCodeNavigation;
 class FCSSubobjectEditorCustomization;
 class FCSBlueprintEditorCustomization;
 
@@ -83,7 +83,7 @@ public:
 private:
     void RegisterSubobjectEditorCustomization();
 
-    TSharedPtr<FCSSourceCodeNavigation> SourceCodeNavigation;
+    TSharedPtr<FProjectSourceCodeNavigation> SourceCodeNavigation;
     TSharedPtr<FCSSubobjectEditorCustomization> SubobjectEditorCustomization;
     TSharedPtr<FCSBlueprintEditorCustomization> BlueprintEditorCustomization;
     TArray<TSharedRef<IAssetTypeActions>> RegisteredAssetTypeActions;

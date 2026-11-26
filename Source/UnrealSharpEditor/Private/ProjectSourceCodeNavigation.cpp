@@ -1,4 +1,4 @@
-#include "CSSourceCodeNavigation.h"
+#include "ProjectSourceCodeNavigation.h"
 
 #include "Framework/Notifications/NotificationManager.h"
 #include "Features/IModularFeatures.h"
@@ -11,7 +11,7 @@
 #include "Types/CSClass.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
-#define LOCTEXT_NAMESPACE "CSSourceCodeNavigation"
+#define LOCTEXT_NAMESPACE "ProjectSourceCodeNavigation"
 
 namespace
 {
@@ -27,13 +27,13 @@ namespace
 	}
 }
 
-bool FCSSourceCodeNavigation::CanNavigateToClass(const UClass* Class)
+bool FProjectSourceCodeNavigation::CanNavigateToClass(const UClass* Class)
 {
 	const UCSClass* ManagedClass = Cast<UCSClass>(Class);
 	return IsValid(ManagedClass) && ManagedClass->HasManagedTypeDefinition();
 }
 
-bool FCSSourceCodeNavigation::NavigateToClass(const UClass* Class)
+bool FProjectSourceCodeNavigation::NavigateToClass(const UClass* Class)
 {
 	if (!CanNavigateToClass(Class))
 	{
@@ -45,7 +45,7 @@ bool FCSSourceCodeNavigation::NavigateToClass(const UClass* Class)
 	return true;
 }
 
-bool FCSSourceCodeNavigation::OpenClass(const UClass* Class)
+bool FProjectSourceCodeNavigation::OpenClass(const UClass* Class)
 {
 	const UCSClass* ManagedClass = Cast<UCSClass>(Class);
 	if (!IsValid(ManagedClass) || !ManagedClass->HasManagedTypeDefinition())
@@ -344,7 +344,7 @@ namespace
 	}
 }
 
-bool FCSSourceCodeNavigation::TryOpenInRunningVisualStudio(const FString& FullPath, int32 LineNumber, int32 ColumnNumber)
+bool FProjectSourceCodeNavigation::TryOpenInRunningVisualStudio(const FString& FullPath, int32 LineNumber, int32 ColumnNumber)
 {
 	if (!IsSelectedEditorVisualStudio() || FullPath.IsEmpty() || !FPaths::FileExists(FullPath))
 	{
@@ -501,7 +501,7 @@ bool FCSSourceCodeNavigation::TryOpenInRunningVisualStudio(const FString& FullPa
 #include "Windows/HideWindowsPlatformAtomics.h"
 #include "Windows/HideWindowsPlatformTypes.h"
 #else
-bool FCSSourceCodeNavigation::TryOpenInRunningVisualStudio(const FString& FullPath, int32 LineNumber, int32 ColumnNumber)
+bool FProjectSourceCodeNavigation::TryOpenInRunningVisualStudio(const FString& FullPath, int32 LineNumber, int32 ColumnNumber)
 {
 	return false;
 }
@@ -530,7 +530,7 @@ namespace
 
 		virtual bool OpenFileAtLine(const FString& FullPath, int32 LineNumber, int32 ColumnNumber) override
 		{
-			if (FCSSourceCodeNavigation::TryOpenInRunningVisualStudio(FullPath, LineNumber, ColumnNumber))
+			if (FProjectSourceCodeNavigation::TryOpenInRunningVisualStudio(FullPath, LineNumber, ColumnNumber))
 			{
 				return true;
 			}
@@ -544,7 +544,7 @@ namespace
 			bool bOpenedAny = false;
 			for (const FString& Path : AbsoluteSourcePaths)
 			{
-				if (FCSSourceCodeNavigation::TryOpenInRunningVisualStudio(Path, 1, 1))
+				if (FProjectSourceCodeNavigation::TryOpenInRunningVisualStudio(Path, 1, 1))
 				{
 					bOpenedAny = true;
 				}
@@ -586,7 +586,7 @@ namespace
 	}
 }
 
-void FCSSourceCodeNavigation::InstallRunningVisualStudioRedirect()
+void FProjectSourceCodeNavigation::InstallRunningVisualStudioRedirect()
 {
 	if (GRunningVisualStudioRedirect)
 	{
@@ -606,7 +606,7 @@ void FCSSourceCodeNavigation::InstallRunningVisualStudioRedirect()
 	IModularFeatures::Get().RegisterModularFeature(SourceCodeAccessorFeatureName, GRunningVisualStudioRedirect);
 }
 
-void FCSSourceCodeNavigation::RemoveRunningVisualStudioRedirect()
+void FProjectSourceCodeNavigation::RemoveRunningVisualStudioRedirect()
 {
 	if (!GRunningVisualStudioRedirect)
 	{

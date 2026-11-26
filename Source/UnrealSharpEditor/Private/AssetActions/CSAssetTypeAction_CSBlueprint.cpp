@@ -3,7 +3,7 @@
 #include "CSManager.h"
 #include "CSProjectUtilities.h"
 #include "CSPathsUtilities.h"
-#include "CSSourceCodeNavigation.h"
+#include "ProjectSourceCodeNavigation.h"
 #include "Misc/MessageDialog.h"
 #include "SourceCodeNavigation.h"
 #include "Types/CSBlueprint.h"
@@ -142,7 +142,7 @@ namespace CSAssetTypeAction_CSBlueprint_Private
 			return;
 		}
 
-		if (FCSSourceCodeNavigation::TryOpenInRunningVisualStudio(SourceFilePath, 1, 1))
+		if (FProjectSourceCodeNavigation::TryOpenInRunningVisualStudio(SourceFilePath, 1, 1))
 		{
 			return;
 		}
@@ -179,7 +179,7 @@ void FCSAssetTypeAction_CSBlueprint::OpenAssetEditor(const TArray<UObject*>& InO
 		if (IsValid(ManagedClass) && ManagedClass->HasManagedTypeDefinition() && Callbacks.FindClassSource)
 		{
 			// Upstream #812: Roslyn-backed navigation with line/column in the selected source editor.
-			FCSSourceCodeNavigation::OpenClass(Blueprint->GeneratedClass);
+			FProjectSourceCodeNavigation::OpenClass(Blueprint->GeneratedClass);
 			continue;
 		}
 

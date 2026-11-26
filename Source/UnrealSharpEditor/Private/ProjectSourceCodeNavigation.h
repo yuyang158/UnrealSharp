@@ -2,7 +2,7 @@
 
 #include "SourceCodeNavigation.h"
 
-class FCSSourceCodeNavigation : public ISourceCodeNavigationHandler
+class FProjectSourceCodeNavigation : public ISourceCodeNavigationHandler
 {
 public:
 	// Reuse a Visual Studio that already has this project's solution open.

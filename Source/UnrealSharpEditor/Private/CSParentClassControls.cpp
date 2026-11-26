@@ -1,6 +1,6 @@
 #include "CSParentClassControls.h"
 
-#include "CSSourceCodeNavigation.h"
+#include "ProjectSourceCodeNavigation.h"
 #include "Engine/Blueprint.h"
 #include "SourceCodeNavigation.h"
 #include "Styling/AppStyle.h"
@@ -19,7 +19,7 @@ TSharedRef<SWidget> MakeCSParentClassControls(UBlueprint* Blueprint)
 	{
 		if (UBlueprint* Current = WeakBlueprint.Get())
 		{
-			FCSSourceCodeNavigation::OpenClass(Current->ParentClass);
+			FProjectSourceCodeNavigation::OpenClass(Current->ParentClass);
 		}
 	};
 	const FText ToolTip = FText::Format(LOCTEXT("OpenSource", "Open the C# parent class in {0}"),

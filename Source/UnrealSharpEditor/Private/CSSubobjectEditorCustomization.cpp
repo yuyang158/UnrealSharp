@@ -1,6 +1,6 @@
 #include "CSSubobjectEditorCustomization.h"
 
-#include "CSSourceCodeNavigation.h"
+#include "ProjectSourceCodeNavigation.h"
 #include "SourceCodeNavigation.h"
 #include "SubobjectData.h"
 #include "Styling/AppStyle.h"
@@ -48,7 +48,7 @@ TSharedPtr<SWidget> FCSSubobjectEditorCustomization::GetControlsWidget(TSharedRe
 		.IsEnabled_Lambda([WeakClass]() { return WeakClass.IsValid(); })
 		.OnNavigate_Lambda([WeakClass]()
 		{
-			FCSSourceCodeNavigation::OpenClass(WeakClass.Get());
+			FProjectSourceCodeNavigation::OpenClass(WeakClass.Get());
 		});
 }
 

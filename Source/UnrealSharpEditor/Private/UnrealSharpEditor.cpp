@@ -11,7 +11,7 @@
 #include "ISettingsModule.h"
 #include "LevelEditor.h"
 #include "SourceCodeNavigation.h"
-#include "CSSourceCodeNavigation.h"
+#include "ProjectSourceCodeNavigation.h"
 #include "CSSubobjectEditorCustomization.h"
 #include "CSBlueprintEditorCustomization.h"
 #include "BlueprintEditorModule.h"
@@ -59,9 +59,9 @@ void FUnrealSharpEditorModule::StartupModule()
 	{
 		AssetTools.RegisterAssetTypeActions(Action);
 	}
-	SourceCodeNavigation = MakeShared<FCSSourceCodeNavigation>();
+	SourceCodeNavigation = MakeShared<FProjectSourceCodeNavigation>();
 	FSourceCodeNavigation::AddNavigationHandler(SourceCodeNavigation.Get());
-	FCSSourceCodeNavigation::InstallRunningVisualStudioRedirect();
+	FProjectSourceCodeNavigation::InstallRunningVisualStudioRedirect();
 	// Runtime glue can load this module before GEditor exists. Kismet requires an initialized editor.
 	if (GEditor)
 	{
@@ -128,7 +128,7 @@ void FUnrealSharpEditorModule::ShutdownModule()
 		}
 	}
 	RegisteredAssetTypeActions.Reset();
-	FCSSourceCodeNavigation::RemoveRunningVisualStudioRedirect();
+	FProjectSourceCodeNavigation::RemoveRunningVisualStudioRedirect();
 	FSourceCodeNavigation::RemoveNavigationHandler(SourceCodeNavigation.Get());
 	SourceCodeNavigation.Reset();
 	UToolMenus::UnRegisterStartupCallback(this);
