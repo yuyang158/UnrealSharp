@@ -82,8 +82,18 @@ public static class IncrementalCompilationManager
             return;
         }
 
-        string fileContent = File.ReadAllText(fullPath);
-        SourceText newText = SourceText.From(fileContent, Encoding.UTF8);
+        SourceHashAlgorithm checksumAlgorithm = SourceHashAlgorithm.Sha256;
+        if (state.TreesByPath!.TryGetValue(fullPath, out SyntaxTree? existingTree)
+            && existingTree.TryGetText(out SourceText? existingText))
+        {
+            checksumAlgorithm = existingText.ChecksumAlgorithm;
+        }
+
+        SourceText newText;
+        using (FileStream fileStream = File.Open(fullPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+        {
+            newText = SourceText.From(fileStream, Encoding.UTF8, checksumAlgorithm);
+        }
 
         CSharpParseOptions parseOptions = (CSharpParseOptions)foundProject.ParseOptions!;
         SyntaxTree newTree = CSharpSyntaxTree.ParseText(newText, parseOptions, path: fullPath);
@@ -108,7 +118,7 @@ public static class IncrementalCompilationManager
             }
         }
 
-        if (state.TreesByPath!.TryGetValue(fullPath, out SyntaxTree? existingTree))
+        if (existingTree is not null)
         {
             state.InitialCompilation = state.InitialCompilation!.ReplaceSyntaxTree(existingTree, newTree);
         }

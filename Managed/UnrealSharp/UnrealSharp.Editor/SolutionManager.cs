@@ -23,7 +23,8 @@ public sealed class FileAdditionalText : AdditionalText
 
     public override SourceText? GetText(CancellationToken cancellationToken = default)
     {
-        return SourceText.From(File.ReadAllText(Path), Encoding.UTF8);
+        using FileStream fileStream = File.Open(Path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        return SourceText.From(fileStream, Encoding.UTF8, SourceHashAlgorithm.Sha256);
     }
 }
 
