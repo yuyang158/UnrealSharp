@@ -460,7 +460,8 @@ bool FCSSourceCodeNavigation::TryOpenInRunningVisualStudio(const FString& FullPa
 	FString PlatformPath = FullPath;
 	FPaths::MakePlatformFilename(PlatformPath);
 	VARIANT FileNameArg = MakeBStrVariant(*PlatformPath);
-	VARIANT ViewKindArg = MakeBStrVariant(L"{7651A702-06E5-11D1-8EBD-00A0C90F26EA}");
+	// EnvDTE.Constants.vsViewKindTextView. {7651A702-...} is vsViewKindDesigner and opens the [Design] tab.
+	VARIANT ViewKindArg = MakeBStrVariant(L"{7651A703-06E5-11D1-8EBD-00A0C90F26EA}");
 
 	// OpenFile(FileName, ViewKind): IDispatch wants the last argument first. These aliases share the BSTRs.
 	VARIANT OpenArgs[2] = { ViewKindArg, FileNameArg };
