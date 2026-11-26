@@ -142,6 +142,11 @@ namespace CSAssetTypeAction_CSBlueprint_Private
 			return;
 		}
 
+		if (FCSSourceCodeNavigation::TryOpenInRunningVisualStudio(SourceFilePath, 1, 1))
+		{
+			return;
+		}
+
 		if (!FSourceCodeNavigation::OpenSourceFile(SourceFilePath))
 		{
 			UE_LOG(LogUnrealSharpEditor, Warning, TEXT("Failed to open C# source file '%s' in the configured IDE"), *SourceFilePath);

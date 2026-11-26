@@ -46,7 +46,8 @@ public class UnrealSharpEditor : ModuleRules
                 "DeveloperToolSettings",
                 "UMG",
                 "ToolWidgets",
-                "Json"
+                "Json",
+                "SourceCodeAccess"
             }
         );
 
