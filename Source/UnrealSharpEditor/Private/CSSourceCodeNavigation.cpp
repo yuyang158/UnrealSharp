@@ -124,7 +124,10 @@ namespace
 			return false;
 		}
 
-		return SourceCodeAccessModule->GetAccessor().GetFName() == TEXT("VisualStudioSourceCodeAccessor");
+		// Editor Preferences stores a version wrapper such as VisualStudio2022 or VisualStudio2026.
+		// VisualStudioSourceCodeAccessor is only the inner implementation and is not the selected name.
+		const FString AccessorName = SourceCodeAccessModule->GetAccessor().GetFName().ToString();
+		return AccessorName.StartsWith(TEXT("VisualStudio")) && !AccessorName.StartsWith(TEXT("VisualStudioCode"));
 	}
 
 	// Higher is better. Zero means this Visual Studio is not editing the current project.
