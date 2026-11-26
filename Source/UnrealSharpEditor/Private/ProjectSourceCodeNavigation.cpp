@@ -349,8 +349,12 @@ bool FProjectSourceCodeNavigation::TryOpenInRunningVisualStudio(const FString& F
 {
 	if (!IsSelectedEditorVisualStudio() || FullPath.IsEmpty() || !FPaths::FileExists(FullPath))
 	{
+		const ISourceCodeAccessModule* SourceCodeAccessModule = FModuleManager::GetModulePtr<ISourceCodeAccessModule>(TEXT("SourceCodeAccess"));
+		const FString AccessorName = SourceCodeAccessModule ? SourceCodeAccessModule->GetAccessor().GetFName().ToString() : TEXT("<missing>");
+		UE_LOG(LogUnrealSharpEditor, Warning, TEXT("[SourceNav] TryOpen skipped. Accessor='%s' path='%s' exists=%d"), *AccessorName, *FullPath, FPaths::FileExists(FullPath) ? 1 : 0);
 		return false;
 	}
+	UE_LOG(LogUnrealSharpEditor, Warning, TEXT("[SourceNav] TryOpen '%s' line %d"), *FullPath, LineNumber);
 
 	FComApartmentScope ComScope;
 	if (!ComScope.CanUseCom())
@@ -583,14 +587,17 @@ namespace
 	{
 		FString NormalizedPath = InOutPath;
 		FPaths::NormalizeFilename(NormalizedPath);
+		UE_LOG(LogUnrealSharpEditor, Warning, TEXT("[SourceNav] Redirect check '%s'"), *NormalizedPath);
 		if (!NormalizedPath.Contains(TEXT("/Intermediate/")) || !NormalizedPath.EndsWith(TEXT(".gen.cpp")))
 		{
+			UE_LOG(LogUnrealSharpEditor, Warning, TEXT("[SourceNav] Not a UHT .gen.cpp, leave the path unchanged."));
 			return false;
 		}
 
 		const int32 IncIndex = NormalizedPath.Find(TEXT("/Inc/"), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
 		if (IncIndex == INDEX_NONE)
 		{
+			UE_LOG(LogUnrealSharpEditor, Warning, TEXT("[SourceNav] .gen.cpp has no /Inc/ segment."));
 			return false;
 		}
 
@@ -598,6 +605,7 @@ namespace
 		FString Remainder;
 		if (!NormalizedPath.Mid(IncIndex + 5).Split(TEXT("/"), &ModuleName, &Remainder) || ModuleName.IsEmpty())
 		{
+			UE_LOG(LogUnrealSharpEditor, Warning, TEXT("[SourceNav] Could not parse module name from '%s'."), *NormalizedPath.Mid(IncIndex));
 			return false;
 		}
 
@@ -605,16 +613,19 @@ namespace
 		if (!FSourceCodeNavigation::FindModulePath(ModuleName, ModuleBasePath))
 		{
 			const FString ProjectModulePath = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir() / TEXT("Source") / ModuleName);
+			UE_LOG(LogUnrealSharpEditor, Warning, TEXT("[SourceNav] FindModulePath failed for '%s'. Fallback '%s' exists=%d."), *ModuleName, *ProjectModulePath, FPaths::DirectoryExists(ProjectModulePath));
 			if (!FPaths::DirectoryExists(ProjectModulePath))
 			{
 				return false;
 			}
 			ModuleBasePath = ProjectModulePath;
 		}
+		UE_LOG(LogUnrealSharpEditor, Warning, TEXT("[SourceNav] Module '%s' base '%s'."), *ModuleName, *ModuleBasePath);
 
 		TArray<FString> GeneratedLines;
 		if (!FFileHelper::LoadFileToStringArray(GeneratedLines, *InOutPath) || GeneratedLines.IsEmpty())
 		{
+			UE_LOG(LogUnrealSharpEditor, Warning, TEXT("[SourceNav] Failed to read generated file '%s'."), *InOutPath);
 			return false;
 		}
 
@@ -663,14 +674,17 @@ namespace
 			}
 		}
 
+		UE_LOG(LogUnrealSharpEditor, Warning, TEXT("[SourceNav] Parsed function '%s' header '%s' from line %d."), *FunctionName, *RelativeHeaderPath, InOutLine);
 		if (RelativeHeaderPath.IsEmpty())
 		{
+			UE_LOG(LogUnrealSharpEditor, Warning, TEXT("[SourceNav] No ModuleRelativePath above line %d."), InOutLine);
 			return false;
 		}
 
 		const FString HeaderPath = FPaths::ConvertRelativePathToFull(ModuleBasePath / RelativeHeaderPath);
 		if (!FPaths::FileExists(HeaderPath))
 		{
+			UE_LOG(LogUnrealSharpEditor, Warning, TEXT("[SourceNav] Header does not exist: '%s'."), *HeaderPath);
 			return false;
 		}
 
@@ -712,7 +726,7 @@ namespace
 			}
 		}
 
-		UE_LOG(LogUnrealSharpEditor, Log, TEXT("Redirected UHT file '%s' to '%s:%d'."), *NormalizedPath, *OpenPath, OpenLine);
+		UE_LOG(LogUnrealSharpEditor, Warning, TEXT("[SourceNav] Redirected UHT file '%s' to '%s:%d'."), *NormalizedPath, *OpenPath, OpenLine);
 		InOutPath = OpenPath;
 		InOutLine = OpenLine;
 		InOutColumn = 1;
@@ -738,16 +752,20 @@ namespace
 
 		virtual bool OpenFileAtLine(const FString& FullPath, int32 LineNumber, int32 ColumnNumber) override
 		{
+			UE_LOG(LogUnrealSharpEditor, Warning, TEXT("[SourceNav] OpenFileAtLine '%s' line %d column %d"), *FullPath, LineNumber, ColumnNumber);
 			FString Path = FullPath;
 			int32 Line = LineNumber;
 			int32 Column = ColumnNumber;
-			TryRedirectUhtGeneratedFile(Path, Line, Column);
+			const bool bRedirected = TryRedirectUhtGeneratedFile(Path, Line, Column);
+			UE_LOG(LogUnrealSharpEditor, Warning, TEXT("[SourceNav] OpenFileAtLine redirected=%d path='%s' line=%d"), bRedirected ? 1 : 0, *Path, Line);
 
 			if (FProjectSourceCodeNavigation::TryOpenInRunningVisualStudio(Path, Line, Column))
 			{
+				UE_LOG(LogUnrealSharpEditor, Warning, TEXT("[SourceNav] Opened in the running Visual Studio."));
 				return true;
 			}
 
+			UE_LOG(LogUnrealSharpEditor, Warning, TEXT("[SourceNav] Running Visual Studio did not take the file. Falling back to the editor accessor."));
 			return Inner->OpenFileAtLine(Path, Line, Column);
 		}
 
@@ -812,8 +830,10 @@ void FProjectSourceCodeNavigation::InstallRunningVisualStudioRedirect()
 
 	ISourceCodeAccessModule& SourceCodeAccessModule = FModuleManager::LoadModuleChecked<ISourceCodeAccessModule>(TEXT("SourceCodeAccess"));
 	ISourceCodeAccessor& CurrentAccessor = SourceCodeAccessModule.GetAccessor();
-	if (!IsVisualStudioAccessorName(CurrentAccessor.GetFName().ToString()))
+	const FString PreviousName = CurrentAccessor.GetFName().ToString();
+	if (!IsVisualStudioAccessorName(PreviousName))
 	{
+		UE_LOG(LogUnrealSharpEditor, Warning, TEXT("[SourceNav] Redirect not installed. Current accessor is '%s'."), *PreviousName);
 		return;
 	}
 
@@ -821,6 +841,7 @@ void FProjectSourceCodeNavigation::InstallRunningVisualStudioRedirect()
 	GRunningVisualStudioRedirect = new FRunningVisualStudioSourceAccessor(CurrentAccessor);
 	IModularFeatures::Get().UnregisterModularFeature(SourceCodeAccessorFeatureName, GRedirectedVisualStudioAccessor);
 	IModularFeatures::Get().RegisterModularFeature(SourceCodeAccessorFeatureName, GRunningVisualStudioRedirect);
+	UE_LOG(LogUnrealSharpEditor, Warning, TEXT("[SourceNav] Redirect installed over '%s'. Active accessor is now '%s'."), *PreviousName, *SourceCodeAccessModule.GetAccessor().GetFName().ToString());
 }
 
 void FProjectSourceCodeNavigation::RemoveRunningVisualStudioRedirect()
