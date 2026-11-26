@@ -587,10 +587,8 @@ namespace
 	{
 		FString NormalizedPath = InOutPath;
 		FPaths::NormalizeFilename(NormalizedPath);
-		UE_LOG(LogUnrealSharpEditor, Warning, TEXT("[SourceNav] Redirect check '%s'"), *NormalizedPath);
 		if (!NormalizedPath.Contains(TEXT("/Intermediate/")) || !NormalizedPath.EndsWith(TEXT(".gen.cpp")))
 		{
-			UE_LOG(LogUnrealSharpEditor, Warning, TEXT("[SourceNav] Not a UHT .gen.cpp, leave the path unchanged."));
 			return false;
 		}
 
@@ -620,6 +618,10 @@ namespace
 			}
 			ModuleBasePath = ProjectModulePath;
 		}
+		if (FPaths::IsRelative(ModuleBasePath))
+		{
+			ModuleBasePath = FPaths::ConvertRelativePathToFull(ModuleBasePath);
+		}
 		UE_LOG(LogUnrealSharpEditor, Warning, TEXT("[SourceNav] Module '%s' base '%s'."), *ModuleName, *ModuleBasePath);
 
 		TArray<FString> GeneratedLines;
@@ -629,59 +631,89 @@ namespace
 			return false;
 		}
 
+		auto ReadModuleRelativePath = [](const FString& Line) -> FString
+		{
+			const FString PathMarker = TEXT("\"ModuleRelativePath\", \"");
+			const int32 MarkerIndex = Line.Find(PathMarker, ESearchCase::CaseSensitive);
+			if (MarkerIndex == INDEX_NONE)
+			{
+				return FString();
+			}
+
+			const FString AfterMarker = Line.Mid(MarkerIndex + PathMarker.Len());
+			int32 QuoteIndex = INDEX_NONE;
+			if (!AfterMarker.FindChar(TEXT('"'), QuoteIndex))
+			{
+				return FString();
+			}
+
+			return AfterMarker.Left(QuoteIndex);
+		};
+
+		auto ReadFunctionName = [](const FString& Line) -> FString
+		{
+			if (!Line.Contains(TEXT("Begin Class")) || !Line.Contains(TEXT(" Function ")))
+			{
+				return FString();
+			}
+
+			const int32 FunctionIndex = Line.Find(TEXT(" Function "), ESearchCase::CaseSensitive);
+			FString Name = Line.Mid(FunctionIndex + 10);
+			int32 StarIndex = INDEX_NONE;
+			if (Name.FindChar(TEXT('*'), StarIndex))
+			{
+				Name = Name.Left(StarIndex);
+			}
+			Name.TrimStartAndEndInline();
+			return Name;
+		};
+
+		// RPC thunks are emitted before the metadata that names the real header, so the
+		// ModuleRelativePath can sit below the PDB line. Scan the whole function block.
 		FString RelativeHeaderPath;
 		FString FunctionName;
 		const int32 StartLine = FMath::Clamp(InOutLine - 1, 0, GeneratedLines.Num() - 1);
+		int32 BlockBegin = INDEX_NONE;
 		for (int32 Index = StartLine; Index >= 0; --Index)
 		{
-			const FString& Line = GeneratedLines[Index];
-			if (RelativeHeaderPath.IsEmpty())
+			FunctionName = ReadFunctionName(GeneratedLines[Index]);
+			if (!FunctionName.IsEmpty())
 			{
-				const FString PathMarker = TEXT("\"ModuleRelativePath\", \"");
-				const int32 MarkerIndex = Line.Find(PathMarker, ESearchCase::CaseSensitive);
-				if (MarkerIndex != INDEX_NONE)
-				{
-					const FString AfterMarker = Line.Mid(MarkerIndex + PathMarker.Len());
-					int32 QuoteIndex = INDEX_NONE;
-					if (AfterMarker.FindChar(TEXT('"'), QuoteIndex))
-					{
-						RelativeHeaderPath = AfterMarker.Left(QuoteIndex);
-					}
-				}
-			}
-
-			if (FunctionName.IsEmpty() && Line.Contains(TEXT("Begin Class")) && Line.Contains(TEXT(" Function ")))
-			{
-				const int32 FunctionIndex = Line.Find(TEXT(" Function "), ESearchCase::CaseSensitive);
-				FString Name = Line.Mid(FunctionIndex + 10);
-				int32 StarIndex = INDEX_NONE;
-				if (Name.FindChar(TEXT('*'), StarIndex))
-				{
-					Name = Name.Left(StarIndex);
-				}
-				Name.TrimStartAndEndInline();
-				FunctionName = Name;
-			}
-
-			if (!RelativeHeaderPath.IsEmpty() && !FunctionName.IsEmpty())
-			{
+				BlockBegin = Index;
 				break;
 			}
+		}
 
-			if (Index < StartLine && Line.Contains(TEXT("End Class")) && Line.Contains(TEXT("Function")))
+		if (BlockBegin != INDEX_NONE)
+		{
+			for (int32 Index = BlockBegin; Index < GeneratedLines.Num(); ++Index)
 			{
-				break;
+				if (RelativeHeaderPath.IsEmpty())
+				{
+					RelativeHeaderPath = ReadModuleRelativePath(GeneratedLines[Index]);
+				}
+
+				if (Index > BlockBegin && GeneratedLines[Index].Contains(TEXT("End Class")) && GeneratedLines[Index].Contains(TEXT("Function")))
+				{
+					break;
+				}
 			}
 		}
 
 		UE_LOG(LogUnrealSharpEditor, Warning, TEXT("[SourceNav] Parsed function '%s' header '%s' from line %d."), *FunctionName, *RelativeHeaderPath, InOutLine);
 		if (RelativeHeaderPath.IsEmpty())
 		{
-			UE_LOG(LogUnrealSharpEditor, Warning, TEXT("[SourceNav] No ModuleRelativePath above line %d."), InOutLine);
+			UE_LOG(LogUnrealSharpEditor, Warning, TEXT("[SourceNav] No ModuleRelativePath in the function block around line %d."), InOutLine);
 			return false;
 		}
 
-		const FString HeaderPath = FPaths::ConvertRelativePathToFull(ModuleBasePath / RelativeHeaderPath);
+		FString HeaderPath = FPaths::ConvertRelativePathToFull(ModuleBasePath / RelativeHeaderPath);
+		if (!FPaths::FileExists(HeaderPath))
+		{
+			const FString ProjectHeaderPath = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir() / TEXT("Source") / ModuleName / RelativeHeaderPath);
+			UE_LOG(LogUnrealSharpEditor, Warning, TEXT("[SourceNav] Header missing at '%s'. Trying '%s'."), *HeaderPath, *ProjectHeaderPath);
+			HeaderPath = ProjectHeaderPath;
+		}
 		if (!FPaths::FileExists(HeaderPath))
 		{
 			UE_LOG(LogUnrealSharpEditor, Warning, TEXT("[SourceNav] Header does not exist: '%s'."), *HeaderPath);
