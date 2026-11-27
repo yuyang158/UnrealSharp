@@ -39,7 +39,7 @@ void UCSGameplayTagsGlueGenerator::ProcessGameplayTags()
 	for (const FGameplayTag& GameplayTag : GameplayTagArray)
 	{
 		const TArray<FName>& SourceNames = GameplayTagsManager.FindTagNode(GameplayTag)->GetAllSourceNames();
-		if (SourceNames.Contains(TEXT("UnrealSharpCore")))
+		if (SourceNames.Num() == 1 && SourceNames[0] == TEXT("UnrealSharpCore"))
 		{
 			continue;
 		}
