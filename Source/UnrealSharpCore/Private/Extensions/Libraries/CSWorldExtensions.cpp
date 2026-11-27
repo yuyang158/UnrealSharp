@@ -19,8 +19,18 @@ void UCSWorldExtensions::ExecuteConstruction(AActor* Actor, const FTransform& Tr
 
 void UCSWorldExtensions::PostActorConstruction(AActor* Actor)
 {
+	if (!IsValid(Actor))
+	{
+		return;
+	}
+
 	Actor->PostActorConstruction();
 	Actor->PostLoad();
+
+	if (UWorld* World = Actor->GetWorld())
+	{
+		World->OnActorFinishedSpawning(Actor);
+	}
 }
 
 FURL UCSWorldExtensions::WorldURL(const UObject* WorldContextObject)
