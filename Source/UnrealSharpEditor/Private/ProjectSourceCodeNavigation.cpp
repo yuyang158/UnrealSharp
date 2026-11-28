@@ -8,6 +8,7 @@
 #include "Misc/App.h"
 #include "Misc/EngineVersionComparison.h"
 #include "Modules/ModuleManager.h"
+#include "UObject/UObjectBase.h"
 #include "UnrealSharpEditor.h"
 #include "Types/CSClass.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -884,7 +885,9 @@ void FProjectSourceCodeNavigation::RemoveRunningVisualStudioRedirect()
 	}
 
 	IModularFeatures::Get().UnregisterModularFeature(SourceCodeAccessorFeatureName, GRunningVisualStudioRedirect);
-	if (GRedirectedVisualStudioAccessor)
+	// AppPreExit purges UObjects before ShutdownModule. Re-registering the accessor makes
+	// SourceCodeAccess call GetDefault<USourceCodeAccessSettings>() and crash in CreateDefaultObject.
+	if (GRedirectedVisualStudioAccessor && UObjectInitialized())
 	{
 		IModularFeatures::Get().RegisterModularFeature(SourceCodeAccessorFeatureName, GRedirectedVisualStudioAccessor);
 	}
